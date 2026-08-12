@@ -723,7 +723,7 @@ function wireMCMA(it, keyIdx, onGrade){
 let lTab='wfd', lIdx=0, lPage=0;
 const LPP=10;
 function renderListen(){
-  const tabHtml='<div class="tabs" id="lTabs"><button data-l="wfd" class="'+(lTab==='wfd'?'on':'')+'">✏️ WFD 听写</button><button data-l="sst" class="'+(lTab==='sst'?'on':'')+'">📖 SST 精听('+DATA.pass.length+')</button><button data-l="hiw" class="'+(lTab==='hiw'?'on':'')+'">👂 HIW 听错词</button><button data-l="wfdlib" class="'+(lTab==='wfdlib'?'on':'')+'">📚 WFD 句库</button></div>';
+  const tabHtml='<div class="tabs" id="lTabs"><button data-l="wfd" class="'+(lTab==='wfd'?'on':'')+'">✏️ WFD 听写</button><button data-l="sst" class="'+(lTab==='sst'?'on':'')+'">📖 SST 精听</button><button data-l="hiw" class="'+(lTab==='hiw'?'on':'')+'">👂 HIW 听错词</button><button data-l="wfdlib" class="'+(lTab==='wfdlib'?'on':'')+'">📚 WFD 句库</button></div>';
   const typeBar='<div style="margin-bottom:10px"><span class="tpb li">听力 Listening</span><span class="tpb wr">写作 Writing</span> 题型：WFD / SST / HIW / FIB-L — WFD 权重最高、机经必中</div>';
   let html=practiceBar()+tabHtml+typeBar;
   if(lTab==='wfd'){
