@@ -632,6 +632,7 @@ function renderReading(){
       +'<div class="ex show" style="font-size:14px;line-height:1.7;margin-bottom:10px">'+it[1]+'</div>'
       +'<div style="font-weight:600;color:var(--slate);font-size:14px;margin-bottom:8px">'+it[2]+'</div>'
       +'<div id="mcOpts">'+it[3].map(function(o,i){return '<button class="mc-opt" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px;cursor:pointer">'+o+'</button>';}).join('')+'</div>'
+      +'<div id="mcCnt" style="font-size:12.5px;color:var(--muted);margin:8px 0 2px"></div>'
       +'<button class="btn" id="mcChk" style="margin-top:8px">提交</button><div id="mcRes"></div>'
       +'<div class="row"><button class="btn ghost" id="roPrev">上一篇</button><button class="btn" id="roNext">下一篇</button></div></div>';
   }
@@ -681,14 +682,18 @@ function wireMCSA(it, keyIdx, onGrade){
 }
 function wireMCMA(it, keyIdx, onGrade){
   const picks=new Set();
+  const need=it.slice(4).length;
+  const updateMcCnt=function(){const el=$('#mcCnt');if(!el)return;const n=picks.size;el.textContent='已选 '+n+' 项 · 本题应选 '+need+' 项';el.style.color=(n>need)?'var(--amber)':'var(--muted)';};
   body.querySelectorAll('.mc-opt').forEach(function(btn){btn.onclick=function(){
     const i=+btn.dataset.i;
     if(picks.has(i)){picks.delete(i);btn.style.background='#fff';btn.style.borderColor='var(--line)';}
     else{picks.add(i);btn.style.background='#EAF4F5';btn.style.borderColor='var(--teal)';}
+    updateMcCnt();
   };});
+  updateMcCnt();
   $('#mcChk').onclick=function(){
     if(picks.size===0){alert('请至少选择一个选项');return;}
-    const corr=it[4]; let ok=0; corr.forEach(function(i){if(picks.has(i))ok++;});
+    const corr=it.slice(4); let ok=0; corr.forEach(function(i){if(picks.has(i))ok++;});
     const pct=Math.round(ok/corr.length*100);
     if(onGrade){onGrade(pct);}else{const key='mcma:'+keyIdx; if(!mcAcc[key])mcAcc[key]={n:0,c:0}; mcAcc[key].n++; if(pct>=60)mcAcc[key].c++; save('pte_mc',mcAcc);}
     accLog.push({ts:Date.now(),type:'MCMA',pct:pct}); save('pte_acclog',accLog);
@@ -1306,6 +1311,7 @@ function renderMock(){
       +'<div class="ex show" style="font-size:14px;line-height:1.7;margin-bottom:10px">'+it2[1]+'</div>'
       +'<div style="font-weight:600;color:var(--slate);font-size:14px;margin-bottom:8px">'+it2[2]+'</div>'
       +'<div id="mcOpts">'+it2[3].map(function(o,i){return '<button class="mc-opt" data-i="'+i+'" style="display:block;width:100%;text-align:left;margin:6px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px;cursor:pointer">'+o+'</button>';}).join('')+'</div>'
+      +'<div id="mcCnt" style="font-size:12.5px;color:var(--muted);margin:8px 0 2px"></div>'
       +'<button class="btn" id="mcChk" style="margin-top:8px">提交</button><div id="mcRes"></div>'
       +'<div class="hint">阅读自动判分：选项全对得分。</div></div>';
   } else {
@@ -1414,6 +1420,6 @@ document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>switchTab(b.da
 updateTop();
 switchTab('today');
 </script>
-<footer>阿奇猫为你做的阿奇PTE · v6.23 补强版（鹿茸冲刺法 / 逐词对照跟读·SST讲座+WFD+WE+全口语·口语结构化自评+录音回放·SWT关键内容词自动判分·WE官方7维量规自评+机经范文对照·模考透明计分+58目标线+PTE官方档位当量估算·无账号备份同步码 / 本次补强：①新增阅读专项模块 RO段落排序+MCSA单选+MCMA多选（离线自动判分，已纳入模考与错题本）②词汇库清洗 570 AWL 词条中文释义混入的 77 处英文词根已全部清除 ③SWT 扩至 10 篇真实真题机经（ezpte/utibao/bilibili/leapscholar/bandladder/pteonline 原文+机经范文对照）④错题本弱项追踪覆盖 RO/MCSA/MCMA / 题量：SST 15 · SWT 10 · WE 范文 4 · RA 40 · DI 16 · ASQ 163 · WFD 219，均取自公开机经池，真题原文 / 离线可用）</footer>
+<footer>阿奇猫为你做的阿奇PTE · v6.24 优化版（鹿茸冲刺法 / 逐词对照跟读·SST讲座+WFD+WE+全口语·口语结构化自评+录音回放·SWT关键内容词自动判分·WE官方7维量规自评+机经范文对照·模考透明计分+58目标线+PTE官方档位当量估算·无账号备份同步码 / 本次优化：①修复 MCMA 多选题「提交」崩溃 bug（正确项索引解析错误，已改为数组切片 it.slice(4)，阅读页与模考路径均修复）②MCMA 新增「已选 X 项 · 本题应选 N 项」实时计数，超选变琥珀色预警 ③全链路 jsdom 自动化验证：基线 21/21、MCMA 13/13、完整模考 33 题 0 运行时错误 / 题量：SST 15 · SWT 10 · WE 范文 4 · RA 40 · DI 16 · ASQ 163 · WFD 219，均取自公开机经池，真题原文 / 离线可用）</footer>
 </body>
 </html>
