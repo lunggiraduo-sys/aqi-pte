@@ -242,7 +242,7 @@ let roAcc=load('pte_ro',{});
 let mcAcc=load('pte_mc',{});
 let hist=load('pte_hist',[]);
 let accLog=load('pte_acclog',[]);
-let spk=load('pte_spk',{}); // 口语结构化自评：key=type:idx -> {flu,con,pro}
+let spk=load('pte_spk',{}); // 口语评分记录
 let wrtData=load('pte_wrt',{}); // WE 官方量规自评：key=wIdx -> {traitIdx:score}
 
 // 发音 voice 锁定 en-US
@@ -303,22 +303,6 @@ function attachRec(btnId){
 }
 function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 
-// 口语结构化自评（流利度/内容/发音，每项 1–5，记录最好一次）
-function spkRateHtml(type,idx){
-  const k=type+':'+idx; const c=spk[k]||{};
-  const dims=[['flu','流利度'],['con','内容'],['pro','发音']];
-  return '<div class="ratebox" id="ratebox"><div class="rate-tip">结构化自评（每项 1–5，取最好一次保存）</div>'
-    +dims.map(d=>'<div class="rate-row"><span class="rate-lab">'+d[1]+'</span><span class="diff-row" data-dim="'+d[0]+'">'+[1,2,3,4,5].map(n=>'<button class="diff-btn '+(n<=2?'hard':n===3?'mid':'easy')+'" data-n="'+n+'">'+n+'</button>').join('')+'</span></div>').join('')
-    +'<div id="rateBest" class="rate-best"></div></div>';
-}
-function spkBest(type,idx){const c=spk[type+':'+idx]; if(c&&c.flu&&c.con&&c.pro)return Math.round((c.flu+c.con+c.pro)/3*10)/10; return 0;}
-function wireSpkRate(type,idx){
-  const k=type+':'+idx; const box=$('#ratebox'); if(!box)return;
-  const cur=spk[k]||{};
-  const setD=(dim,n)=>{ if(!spk[k])spk[k]={flu:0,con:0,pro:0}; spk[k][dim]=n; save('pte_spk',spk); const c=spk[k]; if(c.flu&&c.con&&c.pro){const avg=Math.round((c.flu+c.con+c.pro)/3*10)/10; $('#rateBest').textContent='本次综合 '+avg+'/5 · 历史最好 '+spkBest(type,idx)+'/5';} };
-  box.querySelectorAll('.diff-row').forEach(row=>{const dim=row.dataset.dim; if(cur[dim])row.querySelector('[data-n="'+cur[dim]+'"]').classList.add('on'); row.querySelectorAll('button').forEach(b=>b.onclick=()=>{row.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');setD(dim,+b.dataset.n);});});
-  $('#rateBest').textContent=spkBest(type,idx)?('历史最好 '+spkBest(type,idx)+'/5'):'';
-}
 // SWT 一句话总结：关键内容词覆盖率（离线，对照范文）
 function gradeSWT(user, model){
   const keys=sstKeys(model); if(!keys.length)return {pct:0,keys:[],hit:[]};
@@ -552,7 +536,7 @@ function renderWriting(){
     +'<div class="ex show" style="margin-bottom:10px"><b>'+wp[0]+'</b><div style="margin-top:4px;color:#555">'+wp[1]+'</div></div>'
     +'<textarea class="ta" id="essay" placeholder="'+(isSWT?'用一句话总结（5–75词），套模板：This text argues that...':'写200–300词议论文。引言→主体1→主体2→结论。连接词：Firstly/Furthermore/However/In conclusion')+'" style="min-height:'+(isSWT?'80px':'200px')+'"></textarea>'
     +'<div id="wc" style="font-size:12px;color:var(--muted);margin-top:6px;text-align:right">0 词</div>'
-    +(isSWT?'<button class="btn" id="swtChk" style="margin-top:8px">自动核对关键词（对照范文）</button><div id="swtRes"></div>':'<button class="speak" id="weWbtn" style="margin-top:8px">🔤 逐词慢速连播我的作文</button><button class="btn" id="weModelBtn" style="margin-top:8px">📖 对照机经范文</button><div id="weWords"></div><div id="weModel" style="display:none;margin-top:10px"></div><div id="weRub"></div>')
+    +(isSWT?'<button class="btn" id="swtChk" style="margin-top:8px">自动核对关键词（对照范文）</button><div id="swtRes"></div>':'<button class="btn" id="weModelBtn" style="margin-top:8px">📖 对照机经范文</button><div id="weModel" style="display:none;margin-top:10px"></div><div id="weRub"></div>')
     +'<div id="tpl" style="font-size:12px;margin-top:4px"></div>'
     +'<div class="row"><button class="btn ghost" id="prevW">上一题</button><button class="btn" id="nextW">下一题</button></div></div>'
     +'<div class="hint">💡 '+(isSWT?'SWT：只能写一句！用 and/which/that 连接。':'WE：模板先行！引言→主体1(论点+例)→主体2(反方)→结论。机器判分重语法拼写。')+'</div>';
@@ -568,7 +552,6 @@ function renderWriting(){
   };
   essay.oninput=updWc; updWc();
   if(isSWT){const sc=$('#swtChk'); if(sc)sc.onclick=()=>{bump('l');const g=gradeSWT($('#essay').value, wp[2]||wp[1]);const kwh=g.keys.map(k=>'<span class="'+(g.hit.includes(k)?'tok-ok':'tok-no')+'">'+k+'</span>').join(' ');const w=$('#essay').value.trim().split(/\s+/).filter(Boolean).length;$('#swtRes').innerHTML='<div class="ph" style="margin-top:10px">关键内容词覆盖 '+g.hit.length+'/'+g.keys.length+'（'+g.pct+'%）· '+w+' 词</div><div style="font-size:14px;line-height:1.9;margin-top:4px">'+kwh+'</div><div class="hint" style="margin-top:4px">范文：'+(wp[2]||wp[1])+'</div>';accLog.push({ts:Date.now(),type:'SWT',pct:g.pct});save('pte_acclog',accLog);};}
-  const weWb=$('#weWbtn'); if(weWb){weWb.onclick=()=>{const txt=($('#essay').value||'').trim(); const box=$('#weWords'); if(!txt){alert('先写点内容再跟读');return;} box.innerHTML=wordCards(txt,'weWords'); speakWords(txt,650); wireWordCards('weWords');};}
   const weMb=$('#weModelBtn'); const weMd=$('#weModel'); if(weMb&&weMd){const hasM=wp[2]&&wp[2].trim().length>40; weMb.style.display=hasM?'inline-block':'none'; weMb.onclick=()=>{ if(weMd.style.display==='none'){ weMd.style.display='block'; weMd.innerHTML='<div class="ph" style="margin:2px 0 6px">机经范文（建议写完再对照，勿提前偷看）</div><div style="font-size:14.5px;line-height:1.9;white-space:pre-wrap;color:#222;background:#F7F9FB;border:1px solid #E3E8EC;border-radius:8px;padding:12px">'+ (wp[2]||'(暂无范文)') +'</div>'; weMb.textContent='🙈 隐藏机经范文'; } else { weMd.style.display='none'; weMb.textContent='📖 对照机经范文'; } };}
   const rubBox=$('#weRub'); if(rubBox){
     rubBox.innerHTML=weRubricHtml(wIdx);
@@ -863,7 +846,7 @@ function renderSpeaking(){
       +'<button class="speak" id="spk">🔊 听标准发音</button>'
       +'<button class="mic" id="mic">🎤 录自己朗读</button>'
       +'<button class="shadow" id="shadow">🔊🔁 影子跟读 A/B 连播</button>'
-      +spkRateHtml('ra',sIdx)
+      
       +'<div class="hint">PTE RA 评分：流利度 40% + 发音 40% + 内容 20%。不要卡顿，读错也继续！点「影子跟读」会连放两遍（间隔 1.2 秒），第一遍听、第二遍跟读。</div>'
       +'<div class="row"><button class="btn ghost" id="prevS">上一段</button><button class="btn" id="nextS">下一段</button></div></div>';
   } else if(sTab==='rs'){
@@ -876,7 +859,7 @@ function renderSpeaking(){
       +'<div class="flip-tip" id="flip">👆 复述完点这里看原文</div>'
       +'<button class="speak" id="rsWbtn">🔤 逐词慢速连播</button>'
       +wordCards(d[0],'rsWords')
-      +spkRateHtml('rs',sIdx%DATA.rs_sen.length)
+      
       +'<div class="hint">RS 占口语 25%+听力 20%。听时抓意群主干，宁可说短也别卡。每句只听一遍！</div>'
       +'<div class="row"><button class="btn" id="nextS" style="flex:1">下一句 ▶</button></div></div>';
   } else if(sTab==='di'){
@@ -888,7 +871,7 @@ function renderSpeaking(){
       +wordCards(t[1],'diWords')
       +'<button class="speak" id="spk">🔊 听模板发音</button>'
       +'<button class="mic" id="mic">🎤 录自己描述（25秒准备→40秒说）</button>'
-      +spkRateHtml('di',sIdx)
+      
       +'<div class="hint">DI 评分：流利度 50% > 发音 > 内容。模板滚瓜烂熟：The graph shows... Overall... First... Second... In conclusion...</div>'
       +'<div class="row"><button class="btn ghost" id="prevS">上一题</button><button class="btn" id="nextS">下一题</button></div></div>';
   } else if(sTab==='rl'){
@@ -899,8 +882,8 @@ function renderSpeaking(){
       +'<button class="mic" id="mic">🎤 录自己复述</button>'
       +'<button class="btn ghost" id="showTr" style="margin-top:10px">显示 / 隐藏 原文</button>'
       +'<div class="ex" id="tr" style="margin-top:10px;font-size:13px;line-height:1.7">'+t[1]+'</div>'
-      +'<div class="hint">RL：听 60–90 秒讲座，抓关键词后复述要点。流利度 > 内容。下方按「流利度/内容/发音」结构化自评。</div>'
-      +spkRateHtml('rl',sIdx%DATA.rl.length)
+      +'<div class="hint">RL：听 60–90 秒讲座，抓关键词后复述要点。流利度 > 内容。下方直接点「答对」或「答错」即可。</div>'
+      
       +'<button class="btn ghost" id="showSamp" style="margin-top:8px">显示 高分范文</button>'
       +'<div class="ex" id="samp" style="margin-top:10px;font-size:13px;line-height:1.7;background:#EAF4F5">'+t[2]+'</div>'
       +'<button class="speak" id="rlWbtn" style="margin-top:10px">🔤 逐词慢速连播范文</button>'
@@ -929,7 +912,7 @@ function renderSpeaking(){
     $('#shadow').onclick=()=>{speakSeq([DATA.ra_sen[sIdx],DATA.ra_sen[sIdx]],1200);};
     $('#raWbtn').onclick=()=>speakWords(s,650); wireWordCards('raWords');
     attachRec('mic');
-    wireSpkRate('ra',sIdx);
+    
     $('#prevS').onclick=()=>{sIdx=(sIdx-1+DATA.ra_sen.length)%DATA.ra_sen.length;renderSpeaking();};
     $('#nextS').onclick=()=>{sIdx=(sIdx+1)%DATA.ra_sen.length;renderSpeaking();bump('l');};
   } else if(sTab==='rs'){
@@ -937,14 +920,14 @@ function renderSpeaking(){
     $('#shadow').onclick=()=>{speakSeq([DATA.rs_sen[sIdx%DATA.rs_sen.length],DATA.rs_sen[sIdx%DATA.rs_sen.length]],1200);};
     $('#rsWbtn').onclick=()=>speakWords(d[0],650); wireWordCards('rsWords');
     attachRec('mic');
-    wireSpkRate('rs',sIdx%DATA.rs_sen.length);
+    
     $('#nextS').onclick=()=>{sIdx=(sIdx+1)%DATA.rs_sen.length;renderSpeaking();bump('l');};
     const flip=$('#flip'); flip.onclick=()=>{$('#cn').classList.add('show');};
   } else if(sTab==='di'){
     $('#spk').onclick=()=>{speak(DATA.di_topics[sIdx][1]);bump('l');};
     $('#diWbtn').onclick=()=>speakWords(t[1],650); wireWordCards('diWords');
     attachRec('mic');
-    wireSpkRate('di',sIdx);
+    
     $('#prevS').onclick=()=>{sIdx=(sIdx-1+DATA.di_topics.length)%DATA.di_topics.length;renderSpeaking();};
     $('#nextS').onclick=()=>{sIdx=(sIdx+1)%DATA.di_topics.length;renderSpeaking();bump('l');};
   } else if(sTab==='rl'){
@@ -954,7 +937,7 @@ function renderSpeaking(){
     $('#showSamp').onclick=()=>$('#samp').classList.toggle('show');
     $('#rlWbtn').onclick=()=>speakWords(t[2],650); wireWordCards('rlWords');
     attachRec('mic');
-    wireSpkRate('rl',sIdx%DATA.rl.length);
+    
     $('#prevS').onclick=()=>{sIdx=(sIdx-1+DATA.rl.length)%DATA.rl.length;renderSpeaking();};
     $('#nextS').onclick=()=>{sIdx=(sIdx+1)%DATA.rl.length;renderSpeaking();bump('l');};
   } else if(sTab==='asq'){
