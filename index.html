@@ -512,14 +512,14 @@ function renderVocab(){
     +'<div class="card rw">'+STAR('vocab',vq[vi])+'<div class="wd"><div class="big-word">'+d[0]+'</div>'+ipaHtml+posHtml+'</div>'
     +'<button class="speak" id="spk">🔊 听发音</button>'
     +'<button class="mic" id="mic">🎤 录自己发音</button>'
-    +'<div class="cn" id="cn">'+d[1]+'</div>'
-    +(exHtml?'<div class="flip-tip" id="exb">👆 点这里看例句</div>':'')
-    +'<div class="flip-tip">👆 点单词看中文</div>'
+    +'<div class="cn" id="cn" style="display:block">'+d[1]+'</div>'
+
+
     +'<div class="row"><button class="btn ghost" id="no">不认识</button><button class="btn" id="yes">认识</button></div></div>';
   body.innerHTML=html; wirePracticeBar();
-  const c=$('#cn'); const wd=$('.wd'); if(wd)wd.onclick=()=>c.classList.add('show');
+
   $('#spk').onclick=()=>speak(DATA.vocab[vq[vi]][0]); attachRec('mic');
-  const dd=DATA.vocab[vq[vi]]; if(dd[4]){const exb=$('#exb'); if(exb)exb.onclick=()=>$('#ex').classList.add('show');}
+
   $('#yes').onclick=()=>{
     const idx=vq[vi];
     knownV[idx]=Date.now();save('pte_kv',knownV);bump('v');vi++;renderVocab();
