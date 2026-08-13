@@ -75,8 +75,8 @@
   .mock input{width:54px;padding:6px;border:1px solid var(--line);border-radius:8px;font-size:14px;margin:0 3px;}
   .mock button{background:var(--teal);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:13px;}
   .hint{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:8px;}
-  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;}
-  .tabs button{flex:1;min-width:64px;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:20px;padding:8px 4px;font-size:13px;cursor:pointer;}
+  .tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;justify-content:center;}
+  .tabs button{flex:1;min-width:54px;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:20px;padding:8px 4px;font-size:13px;cursor:pointer;}
   .tabs button.on{background:var(--teal);color:#fff;border-color:var(--teal);font-weight:600;}
   .tabs.prac{background:#EEF1F5;border-radius:12px;padding:5px;margin-bottom:10px;}
   .tabs.prac button{min-width:0;padding:7px 2px;font-size:12.5px;}
@@ -189,6 +189,18 @@
   .rub-auto{font-size:12px;font-weight:600;color:var(--green);}
   .rub-band{font-size:11.5px;color:#55606B;margin-top:3px;min-height:14px;}
   .rub-foot{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--slate);}
+  /* 句子级分句朗读面板 */
+  .sr-panel{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:#FBFCFD;padding:10px;animation:fadeIn .15s ease;}
+  .sr-ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .sr-btn{flex:0 0 auto;width:38px;height:38px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:16px;cursor:pointer;color:var(--slate);touch-action:manipulation;}
+  .sr-btn:active{background:#EAF4F5;}
+  .sr-rate{flex:0 0 auto;border:1px solid var(--line);border-radius:8px;padding:7px 6px;font-size:13px;background:#fff;color:var(--slate);}
+  .sr-prog{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .sr-list{margin-top:8px;max-height:210px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .sr-sent{font-size:13.5px;line-height:1.6;padding:7px 9px;border-radius:8px;color:#33414E;overflow-wrap:anywhere;word-break:break-word;}
+  .sr-sent.sr-cur{background:var(--teal);color:#fff;font-weight:600;}
+  /* iPhone 排版加固：长英文/URL 不撑破视口 */
+  .ex,.cn,.tip,.exam,.ph,.card,.mock,.stat,.stinfo,.tlink,.real,.weak-box,.overall-box{overflow-wrap:anywhere;word-break:break-word;}
 </style>
 </head>
 <body>
@@ -247,10 +259,65 @@ let wrtData=load('pte_wrt',{}); // WE 官方量规自评：key=wIdx -> {traitIdx
 
 // 发音 voice 锁定 en-US
 let voice=null;
-function pickVoice(){const vs=speechSynthesis.getVoices();if(!vs.length)return;voice=vs.find(v=>/^en-US/i.test(v.lang))||vs.find(v=>/^en/i.test(v.lang))||null;if(voice)save('pte_voice',voice.voiceURI);}
+function pickVoice(){const vs=speechSynthesis.getVoices();if(!vs.length)return;const enUS=vs.filter(v=>/^en-US/i.test(v.lang));const pref=['Samantha','Google US English','Enhanced','Daniel','Victoria','Microsoft Aria','Emma','Ava','Allison','Natural','Serena','Arthur','Fred'];let best=null;for(const k of pref){const f=enUS.find(v=>v.name.indexOf(k)>=0);if(f){best=f;break;}}if(!best)best=enUS.find(v=>/premium|enhanced|neural/i.test(v.name))||enUS[0]||vs.find(v=>/^en/i.test(v.lang))||null;voice=best;if(voice)save('pte_voice',voice.voiceURI);}
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
 let speechReady=false;
 function speak(t){if(!('speechSynthesis' in window)){alert('此浏览器不支持朗读，请用 Safari/Chrome');return;}if(!speechReady){const d=new SpeechSynthesisUtterance('');d.volume=0;speechSynthesis.speak(d);speechReady=true;}try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.92;u.pitch=1;if(voice)u.voice=voice;speechSynthesis.speak(u);}catch(e){}}
+
+// 句子级分句朗读（修复 iOS 连续朗读 ~15s 截断；逐句高亮 + 控速 + 上下句）
+let _sr=null;
+function srSplit(t){const raw=(t||'').replace(/\s+/g,' ').trim();if(!raw)return [];const parts=raw.match(/[^.!?]+[.!?]*\s*/g)||[raw];return parts.map(s=>s.trim()).filter(s=>s.length);}
+function srStop(){if(_sr){try{speechSynthesis.cancel();}catch(e){}try{if(_sr.panel&&_sr.panel.parentNode)_sr.panel.parentNode.removeChild(_sr.panel);}catch(e){}_sr=null;}}
+function srStart(text, mountEl){
+  srStop();
+  const sents=srSplit(text);
+  if(!sents.length){speak(text);return;}
+  const panel=document.createElement('div');panel.className='sr-panel';
+  panel.innerHTML='<div class="sr-ctrl">'
+    +'<button class="sr-btn" data-act="prev" title="上一句">⏮</button>'
+    +'<button class="sr-btn" data-act="play" title="播放/暂停">⏯</button>'
+    +'<button class="sr-btn" data-act="next" title="下一句">⏭</button>'
+    +'<button class="sr-btn" data-act="restart" title="重头播放">⟳</button>'
+    +'<select class="sr-rate" title="语速"><option value="0.8">0.8x</option><option value="1" selected>1.0x</option><option value="1.2">1.2x</option></select>'
+    +'<span class="sr-prog"></span></div><div class="sr-list"></div>';
+  (mountEl||document.body).appendChild(panel);
+  const list=panel.querySelector('.sr-list');
+  list.innerHTML=sents.map((s,i)=>'<div class="sr-sent" data-i="'+i+'">'+s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</div>').join('');
+  const rateSel=panel.querySelector('.sr-rate');
+  const playBtn=panel.querySelector('[data-act="play"]');
+  const prog=panel.querySelector('.sr-prog');
+  prog.textContent='0 / '+sents.length;
+  let cur=-1, playing=false, paused=false;
+  function setCur(i){cur=i;list.querySelectorAll('.sr-sent').forEach(el=>el.classList.toggle('sr-cur',+el.dataset.i===i));const el=list.querySelector('.sr-sent[data-i="'+i+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});prog.textContent=(i<0?'':(i+1)+' / ')+sents.length;}
+  function speakOne(i){cur=i;setCur(i);const r=parseFloat(rateSel.value)||1;const u=new SpeechSynthesisUtterance(sents[i]);u.lang='en-US';u.rate=r;u.pitch=1;if(voice)u.voice=voice;u.onend=()=>{if(!playing)return;if(cur+1<sents.length){speakOne(cur+1);}else{playing=false;paused=false;playBtn.textContent='⏯';setCur(-1);}};u.onerror=()=>{playing=false;playBtn.textContent='⏯';};if(!speechReady){const d=new SpeechSynthesisUtterance('');d.volume=0;speechSynthesis.speak(d);speechReady=true;}speechSynthesis.cancel();speechSynthesis.speak(u);}
+  function play(){if(cur<0){playing=true;paused=false;playBtn.textContent='⏸';speakOne(0);}else{playing=true;paused=false;playBtn.textContent='⏸';speechSynthesis.resume();}}
+  function pause(){playing=false;paused=true;speechSynthesis.pause();playBtn.textContent='⏯';}
+  playBtn.onclick=()=>{if(playing){pause();}else{play();}};
+  panel.querySelector('[data-act="prev"]').onclick=()=>{if(sents.length){playing=true;paused=false;playBtn.textContent='⏸';speakOne(Math.max(0,cur<0?0:cur-1));}};
+  panel.querySelector('[data-act="next"]').onclick=()=>{if(sents.length){playing=true;paused=false;playBtn.textContent='⏸';speakOne(Math.min(sents.length-1,cur<0?0:cur+1));}};
+  panel.querySelector('[data-act="restart"]').onclick=()=>{playing=true;paused=false;playBtn.textContent='⏸';speakOne(0);};
+  rateSel.onchange=()=>{save('pte_rate',rateSel.value);if(playing&&!paused&&cur>=0)speakOne(cur);};
+  _sr={panel:panel};
+}
+function addSRBtn(getText){const spk=document.getElementById('spk');if(!spk)return;const b=document.createElement('button');b.className='speak sr-add';b.textContent='🔊 分句朗读';b.style.background='var(--teal)';b.onclick=()=>{const text=typeof getText==='function'?getText():getText;srStart(text,spk.parentNode);};spk.parentNode.insertBefore(b,spk.nextSibling);}
+function mockTranscript(it,idx){
+  if(it.type==='RA')return DATA.ra_sen[idx];
+  if(it.type==='RS')return DATA.rs_sen[idx%DATA.rs_sen.length];
+  if(it.type==='DI')return DATA.di_topics[idx][1];
+  if(it.type==='WFD')return DATA.wfdr[idx%DATA.wfdr.length][0];
+  if(it.type==='SST')return DATA.pass[idx%DATA.pass.length][1];
+  if(it.type==='FIB'){const q=DATA.fibrw[idx%DATA.fibrw.length];return q.p;}
+  if(it.type==='RL')return DATA.rl[idx%DATA.rl.length][1];
+  if(it.type==='ASQ')return DATA.asq[idx%DATA.asq.length][0];
+  if(it.type==='HIW'){const hiw=DATA.hiw[idx%DATA.hiw.length];let at=hiw[0];hiw[1].forEach(p=>{at=at.replace(new RegExp('\\b'+p[0]+'\\b','gi'),p[1]);});return at;}
+  if(it.type==='FIBR')return DATA.fibr[idx%DATA.fibr.length][0];
+  if(it.type==='LMCSA')return DATA.lmcsa[idx%DATA.lmcsa.length][0];
+  if(it.type==='LMCMA')return DATA.lmcma[idx%DATA.lmcma.length][0];
+  if(it.type==='FIBL')return DATA.fibl[idx%DATA.fibl.length][0];
+  if(it.type==='HCS')return DATA.hcs[idx%DATA.hcs.length][0];
+  if(it.type==='SMW')return DATA.smw[idx%DATA.smw.length][0];
+  return DATA.wp[idx%DATA.wp.length][1];
+}
 
 // 录音
 function attachRec(btnId){
@@ -862,6 +929,7 @@ function renderListen(){
   if(lTab==='wfd'){
     const d=DATA.wfdr[lIdx%DATA.wfdr.length];
     $('#spk').onclick=()=>{speak(d[0]);bump('l');};
+    addSRBtn(d[0]);
     $('#chk').onclick=()=>{bump('l');
       const typed=$('#ans').value.trim().toLowerCase();
       const orig=d[0].toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
@@ -881,6 +949,7 @@ function renderListen(){
     $('#nextWFD').onclick=()=>{lIdx++;bump('l');renderListen();};
   } else if(lTab==='sst'){
     $('#spk').onclick=()=>{speak(DATA.pass[lIdx][1]);bump('l');};
+    addSRBtn(DATA.pass[lIdx][1]);
     const flip=$('#flip'); flip.onclick=()=>{$('#cn').classList.add('show');flip.textContent='已显示中文 · 再点隐藏';};
     $('#cn').onclick=()=>{$('#cn').classList.remove('show');flip.textContent='👆 点英文看中文';};
     $('#prevL').onclick=()=>{lIdx=(lIdx-1+DATA.pass.length)%DATA.pass.length;renderListen();};
@@ -905,6 +974,7 @@ function renderListen(){
     let audioText=correct;
     pairs.forEach(p=>{audioText=audioText.replace(new RegExp('\\b'+p[0]+'\\b','gi'),p[1]);});
     $('#spk').onclick=()=>{speak(audioText);bump('l');};
+    addSRBtn(audioText);
     body.querySelectorAll('.hiw-word').forEach(el=>el.onclick=()=>el.classList.toggle('hiw-on'));
     $('#hiwChk').onclick=()=>{
       const tapped=Array.from(document.querySelectorAll('.hiw-word.hiw-on')).map(e=>e.dataset.w);
@@ -927,6 +997,7 @@ function renderListen(){
   else if(lTab==='lmcsa'){
     const it=DATA.lmcsa[lIdx%DATA.lmcsa.length];
     $('#spk').onclick=()=>{speak(it[0]);bump('l');};
+    addSRBtn(it[0]);
     wireListenSingle(it, function(pct){ accLog.push({ts:Date.now(),type:'LMCSA',pct:pct}); save('pte_acclog',accLog); });
     $('#prevL').onclick=()=>{lIdx=(lIdx-1+DATA.lmcsa.length)%DATA.lmcsa.length;renderListen();};
     $('#nextL').onclick=()=>{lIdx=(lIdx+1)%DATA.lmcsa.length;bump('l');renderListen();};
@@ -934,6 +1005,7 @@ function renderListen(){
   else if(lTab==='lmcma'){
     const it=DATA.lmcma[lIdx%DATA.lmcma.length];
     $('#spk').onclick=()=>{speak(it[0]);bump('l');};
+    addSRBtn(it[0]);
     wireListenMulti(it, function(pct){ accLog.push({ts:Date.now(),type:'LMCMA',pct:pct}); save('pte_acclog',accLog); });
     $('#prevL').onclick=()=>{lIdx=(lIdx-1+DATA.lmcma.length)%DATA.lmcma.length;renderListen();};
     $('#nextL').onclick=()=>{lIdx=(lIdx+1)%DATA.lmcma.length;bump('l');renderListen();};
@@ -941,6 +1013,7 @@ function renderListen(){
   else if(lTab==='fibl'){
     const it=DATA.fibl[lIdx%DATA.fibl.length];
     $('#spk').onclick=()=>{speak(it[0]);bump('l');};
+    addSRBtn(it[0]);
     wireFIBL(it, function(pct){ accLog.push({ts:Date.now(),type:'FIBL',pct:pct}); save('pte_acclog',accLog); });
     $('#prevL').onclick=()=>{lIdx=(lIdx-1+DATA.fibl.length)%DATA.fibl.length;renderListen();};
     $('#nextL').onclick=()=>{lIdx=(lIdx+1)%DATA.fibl.length;bump('l');renderListen();};
@@ -948,6 +1021,7 @@ function renderListen(){
   else if(lTab==='hcs'){
     const it=DATA.hcs[lIdx%DATA.hcs.length];
     $('#spk').onclick=()=>{speak(it[0]);bump('l');};
+    addSRBtn(it[0]);
     wireListenSingle(it, function(pct){ accLog.push({ts:Date.now(),type:'HCS',pct:pct}); save('pte_acclog',accLog); });
     $('#prevL').onclick=()=>{lIdx=(lIdx-1+DATA.hcs.length)%DATA.hcs.length;renderListen();};
     $('#nextL').onclick=()=>{lIdx=(lIdx+1)%DATA.hcs.length;bump('l');renderListen();};
@@ -955,6 +1029,7 @@ function renderListen(){
   else if(lTab==='smw'){
     const it=DATA.smw[lIdx%DATA.smw.length];
     $('#spk').onclick=()=>{speak(it[0]);bump('l');};
+    addSRBtn(it[0]);
     wireListenSingle(it, function(pct){ accLog.push({ts:Date.now(),type:'SMW',pct:pct}); save('pte_acclog',accLog); });
     $('#prevL').onclick=()=>{lIdx=(lIdx-1+DATA.smw.length)%DATA.smw.length;renderListen();};
     $('#nextL').onclick=()=>{lIdx=(lIdx+1)%DATA.smw.length;bump('l');renderListen();};
@@ -1030,6 +1105,7 @@ function renderSpeaking(){
   body.querySelectorAll('#sTabs button').forEach(b=>b.onclick=()=>{sTab=b.dataset.s;sIdx=0;renderSpeaking();});
   if(sTab==='ra'){
     $('#spk').onclick=()=>{speak(DATA.ra_sen[sIdx]);bump('l');};
+    addSRBtn(DATA.ra_sen[sIdx]);
     $('#shadow').onclick=()=>{speakSeq([DATA.ra_sen[sIdx],DATA.ra_sen[sIdx]],1200);};
     attachRec('mic');
     
@@ -1037,6 +1113,7 @@ function renderSpeaking(){
     $('#nextS').onclick=()=>{sIdx=(sIdx+1)%DATA.ra_sen.length;renderSpeaking();bump('l');};
   } else if(sTab==='rs'){
     $('#spk').onclick=()=>{speak(DATA.rs_sen[sIdx%DATA.rs_sen.length]);bump('l');};
+    addSRBtn(DATA.rs_sen[sIdx%DATA.rs_sen.length]);
     $('#shadow').onclick=()=>{speakSeq([DATA.rs_sen[sIdx%DATA.rs_sen.length],DATA.rs_sen[sIdx%DATA.rs_sen.length]],1200);};
     attachRec('mic');
     
@@ -1044,6 +1121,7 @@ function renderSpeaking(){
     const flip=$('#flip'); flip.onclick=()=>{$('#cn').classList.add('show');};
   } else if(sTab==='di'){
     $('#spk').onclick=()=>{speak(DATA.di_topics[sIdx][1]);bump('l');};
+    addSRBtn(DATA.di_topics[sIdx][1]);
     attachRec('mic');
     
     $('#prevS').onclick=()=>{sIdx=(sIdx-1+DATA.di_topics.length)%DATA.di_topics.length;renderSpeaking();};
@@ -1051,6 +1129,7 @@ function renderSpeaking(){
   } else if(sTab==='rl'){
     const t=DATA.rl[sIdx%DATA.rl.length];
     $('#spk').onclick=()=>{speak(t[1]);bump('l');};
+    addSRBtn(t[1]);
     $('#showTr').onclick=()=>$('#tr').classList.toggle('show');
     $('#showSamp').onclick=()=>$('#samp').classList.toggle('show');
     attachRec('mic');
@@ -1060,6 +1139,7 @@ function renderSpeaking(){
   } else if(sTab==='asq'){
     const q=DATA.asq[sIdx%DATA.asq.length];
     $('#spk').onclick=()=>{speak(q[0]);bump('l');};
+    addSRBtn(q[0]);
     attachRec('mic');
     $('#showAns').onclick=()=>{$('#ans').classList.add('show');$('#markRow').style.display='block';};
     $('#rt').onclick=()=>{alert('👍 答对了，过！');};
@@ -1496,7 +1576,8 @@ function renderMock(){
     +'<div class="row"><button class="btn ghost" id="mprev"'+(mockRun.idx===0?' disabled':'')+'>上一题</button>'
     +'<button class="btn" id="mnext">'+(mockRun.idx===total-1?'提交模考 ▶':'下一题 ▶')+'</button></div>'
     +'<div class="row"><button class="reset" id="mquit" style="flex:1">退出模考</button></div>';
-  const spk=$('#spk'); if(spk)spk.onclick=()=>{let txt; if(it.type==='RA')txt=DATA.ra_sen[idx]; else if(it.type==='RS')txt=DATA.rs_sen[idx%DATA.rs_sen.length]; else if(it.type==='DI')txt=DATA.di_topics[idx][1]; else if(it.type==='WFD')txt=DATA.wfdr[idx%DATA.wfdr.length][0]; else if(it.type==='SST')txt=DATA.pass[idx%DATA.pass.length][1]; else if(it.type==='FIB'){const q=DATA.fibrw[idx%DATA.fibrw.length];txt=q.p;} else if(it.type==='RL')txt=DATA.rl[idx%DATA.rl.length][1]; else if(it.type==='ASQ')txt=DATA.asq[idx%DATA.asq.length][0]; else if(it.type==='HIW'){const hiw=DATA.hiw[idx%DATA.hiw.length];let at=hiw[0];hiw[1].forEach(p=>{at=at.replace(new RegExp('\\b'+p[0]+'\\b','gi'),p[1]);});txt=at;} else if(it.type==='FIBR'){txt=DATA.fibr[idx%DATA.fibr.length][0];} else if(it.type==='LMCSA'){txt=DATA.lmcsa[idx%DATA.lmcsa.length][0];} else if(it.type==='LMCMA'){txt=DATA.lmcma[idx%DATA.lmcma.length][0];} else if(it.type==='FIBL'){txt=DATA.fibl[idx%DATA.fibl.length][0];} else if(it.type==='HCS'){txt=DATA.hcs[idx%DATA.hcs.length][0];} else if(it.type==='SMW'){txt=DATA.smw[idx%DATA.smw.length][0];} else txt=DATA.wp[idx%DATA.wp.length][1]; speak(txt);bump('l');};
+  const spk=$('#spk'); if(spk)spk.onclick=()=>{let txt; if(it.type==='RA')txt=DATA.ra_sen[idx]; else if(it.type==='RS')txt=DATA.rs_sen[idx%DATA.rs_sen.length]; else if(it.type==='DI')txt=DATA.di_topics[idx][1]; else if(it.type==='WFD')txt=DATA.wfdr[idx%DATA.wfdr.length][0]; else if(it.type==='SST')txt=DATA.pass[idx%DATA.pass.length][1]; else if(it.type==='FIB'){const q=DATA.fibrw[idx%DATA.fibrw.length];txt=q.p;} else if(it.type==='RL')txt=DATA.rl[idx%DATA.rl.length][1]; else if(it.type==='ASQ')txt=DATA.asq[idx%DATA.asq.length][0]; else if(it.type==='HIW'){const hiw=DATA.hiw[idx%DATA.hiw.length];let at=hiw[0];hiw[1].forEach(p=>{at=at.replace(new RegExp('\\b'+p[0]+'\\b','gi'),p[1]);});txt=at;} else if(it.type==='FIBR'){txt=DATA.fibr[idx%DATA.fibr.length][0];} else if(it.type==='LMCSA'){txt=DATA.lmcsa[idx%DATA.lmcsa.length][0];} else if(it.type==='LMCMA'){txt=DATA.lmcma[idx%DATA.lmcma.length][0];} else if(it.type==='FIBL'){txt=DATA.fibl[idx%DATA.fibl.length][0];} else if(it.type==='HCS'){txt=DATA.hcs[idx%DATA.hcs.length][0];} else if(it.type==='SMW'){txt=DATA.smw[idx%DATA.smw.length][0];} else txt=DATA.wp[idx%DATA.wp.length][1]; speak(mockTranscript(it,idx));bump('l');};
+  if(spk)addSRBtn(()=>mockTranscript(it,idx));
   if($('#mic'))attachRec('mic');
   if(it.type==='WFD'){const d=DATA.wfdr[idx%DATA.wfdr.length];$('#chk').onclick=()=>{bump('l');const typed=$('#ans').value.trim().toLowerCase();const orig=d[0].toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);const got=typed.replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);let resHtml='<div class="ph" style="margin-top:10px">核对结果</div><div style="font-size:15px;line-height:1.8">';const mx=Math.max(orig.length,got.length);let okc=0;for(let k=0;k<mx;k++){const o=orig[k]||'',g=got[k]||'';if(o===g){resHtml+=' <span class="tok-ok">'+(g||'·')+'</span>';if(o)okc++;}else{resHtml+=' <span class="tok-no">'+(g||'__')+'</span>';}}const pct=orig.filter(Boolean).length?(okc/orig.filter(Boolean).length*100|0):0;mockRun.auto[mockRun.idx]=pct;mockRun.wfdText[mockRun.idx]=$('#ans').value;const ad=$('#autoD');if(ad)ad.textContent='听力 '+pct+'%';const key=d[0];if(!wfdAcc[key])wfdAcc[key]={n:0,c:0};wfdAcc[key].n++;if(pct>=80)wfdAcc[key].c++;save('pte_wfd',wfdAcc);resHtml+='</div><div class="hint">'+okc+'/'+orig.filter(Boolean).length+' 词正确 ('+pct+'%) · 原文：'+d[0]+'</div>';$('#res').innerHTML=resHtml;$('#cn').style.display='block';};}
   if(it.type==='SST'&&$('#flip'))$('#flip').onclick=()=>{$('#cn').classList.add('show');$('#flip').textContent='已显示中文';};
