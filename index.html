@@ -1098,13 +1098,13 @@ let mockRun=null, mockTimer=null, lastMockDetail=null;
 function clearMockTimer(){if(mockTimer){clearInterval(mockTimer);mockTimer=null;}}
 function startMock(preset){
   const R=n=>Math.floor(Math.random()*n);
-  const src={RA:'ra_sen',RS:'rs_sen',DI:'di_topics',WFD:'wfdr',SST:'pass',FIB:'vocab',WE:'wp',SWT:'wp',RO:'ro',MCSA:'mcsa',MCMA:'mcma'};
+  const src={RA:'ra_sen',RS:'rs_sen',DI:'di_topics',WFD:'wfdr',SST:'pass',FIB:'fibrw',WE:'wp',SWT:'wp',RO:'ro',MCSA:'mcsa',MCMA:'mcma',RL:'rl',ASQ:'asq',HIW:'hiw'};
   const items=[];
   function add(type,n,sec){for(let i=0;i<n;i++)items.push({type,sec,di:R(DATA[src[type]].length)});}
   if(preset==='quick'){
-    add('RA',2,40);add('RS',3,15);add('DI',1,40);add('WFD',4,90);add('SST',1,60);add('FIB',3,30);add('RO',1,40);add('MCSA',1,30);add('MCMA',1,40);add('WE',1,0);
+    add('RA',2,40);add('RS',3,15);add('DI',1,40);add('WFD',4,90);add('SST',1,60);add('FIB',3,30);add('RO',1,40);add('MCSA',1,30);add('MCMA',1,40);add('WE',1,0);add('RL',1,40);add('ASQ',2,10);add('HIW',1,30);
   }else{
-    add('RA',3,40);add('RS',5,15);add('DI',2,40);add('WFD',8,90);add('SST',2,60);add('FIB',5,30);add('RO',2,40);add('MCSA',2,30);add('MCMA',2,40);add('SWT',1,0);add('WE',1,0);
+    add('RA',3,40);add('RS',5,15);add('DI',2,40);add('WFD',8,90);add('SST',2,60);add('FIB',5,30);add('RO',2,40);add('MCSA',2,30);add('MCMA',2,40);add('SWT',1,0);add('WE',1,0);add('RL',2,40);add('ASQ',3,10);add('HIW',2,30);
   }
   mockRun={items,idx:0,total:Date.now(),scores:{},auto:{},wfdText:{}};
   renderMock();
@@ -1112,8 +1112,8 @@ function startMock(preset){
 function submitMock(){
   clearMockTimer();
   const used=Math.floor((Date.now()-mockRun.total)/1000);
-  const area={RA:'口语',RS:'口语',DI:'口语',WFD:'听力',SST:'听力',FIB:'阅读',WE:'写作',SWT:'写作',RO:'阅读',MCSA:'阅读',MCMA:'阅读'};
-  const autoArea={WFD:'听力',SST:'听力',FIB:'阅读',SWT:'写作',RO:'阅读',MCSA:'阅读',MCMA:'阅读'};
+  const area={RA:'口语',RS:'口语',DI:'口语',WFD:'听力',SST:'听力',FIB:'阅读',WE:'写作',SWT:'写作',RO:'阅读',MCSA:'阅读',MCMA:'阅读',RL:'口语',ASQ:'口语',HIW:'听力'};
+  const autoArea={WFD:'听力',SST:'听力',FIB:'阅读',SWT:'写作',RO:'阅读',MCSA:'阅读',MCMA:'阅读',HIW:'听力'};
   const sum={},cnt={};
   mockRun.items.forEach((it,n)=>{
     const a=area[it.type]; let s=null;
@@ -1157,8 +1157,8 @@ function submitMock(){
 }
 function renderMockReview(detail){
   if(!detail||!detail.length){body.innerHTML='<div class="card"><div class="ph">📋 模考回顾</div><div class="hint">暂无逐题记录（旧版模考不含明细）。</div></div>';return;}
-  const TN={RA:'RA 朗读',RS:'RS 复述',DI:'DI 描述',WFD:'WFD 听写',SST:'SST 精听',FIB:'FIB 填空',WE:'WE 写作',SWT:'SWT 总结',RO:'RO 排序',MCSA:'MCSA 单选',MCMA:'MCMA 多选'};
-  const area={RA:'口语',RS:'口语',DI:'口语',WFD:'听力',SST:'听力',FIB:'阅读',WE:'写作',SWT:'写作',RO:'阅读',MCSA:'阅读',MCMA:'阅读'};
+  const TN={RA:'RA 朗读',RS:'RS 复述',DI:'DI 描述',WFD:'WFD 听写',SST:'SST 精听',FIB:'FIB 填空',WE:'WE 写作',SWT:'SWT 总结',RO:'RO 排序',MCSA:'MCSA 单选',MCMA:'MCMA 多选',RL:'RL 复述',ASQ:'ASQ 短答',HIW:'HIW 听错'};
+  const area={RA:'口语',RS:'口语',DI:'口语',WFD:'听力',SST:'听力',FIB:'阅读',WE:'写作',SWT:'写作',RO:'阅读',MCSA:'阅读',MCMA:'阅读',RL:'口语',ASQ:'口语',HIW:'听力'};
   let h='<div class="card"><div class="ph">📋 模考逐题回顾（'+detail.length+' 题）</div><div class="hint" style="margin-top:0">自动判分型显示你的答案与正确率；自评分型显示打的 1–5 分。薄弱项已自动进入「错题本」。</div>';
   detail.forEach(it=>{
     let res='', sub='';
@@ -1195,7 +1195,7 @@ function renderMock(){
     return;
   }
   const it=mockRun.items[mockRun.idx], total=mockRun.items.length;
-  const TN={RA:'RA 朗读',RS:'RS 复述',DI:'DI 描述',WFD:'WFD 听写',SST:'SST 精听',FIB:'FIB 填空',WE:'WE 写作文',SWT:'SWT 一句话总结',RO:'RO 排序',MCSA:'MCSA 单选',MCMA:'MCMA 多选'};
+  const TN={RA:'RA 朗读',RS:'RS 复述',DI:'DI 描述',WFD:'WFD 听写',SST:'SST 精听',FIB:'FIB 填空',WE:'WE 写作文',SWT:'SWT 一句话总结',RO:'RO 排序',MCSA:'MCSA 单选',MCMA:'MCMA 多选',RL:'RL 复述',ASQ:'ASQ 短答',HIW:'HIW 听错'};
   const sec=it.sec, idx=it.di;
   const wp=(it.type==='WE'||it.type==='SWT')?DATA.wp[idx%DATA.wp.length]:null, isSWT=!!(wp&&wp[0].startsWith('SWT'));
   let inner='';
@@ -1262,6 +1262,31 @@ function renderMock(){
       +'<div id="mcCnt" style="font-size:12.5px;color:var(--muted);margin:8px 0 2px"></div>'
       +'<button class="btn" id="mcChk" style="margin-top:8px">提交</button><div id="mcRes"></div>'
       +'<div class="hint">阅读自动判分：选项全对得分。</div></div>';
+  } else if(it.type==='RL'){
+    const t=DATA.rl[idx%DATA.rl.length];
+    inner='<div class="card sp"><div class="ph">'+TN.RL+' · 第 '+(mockRun.idx+1)+'/'+total+'</div>'
+      +'<div style="font-size:14px;color:var(--slate);font-weight:600;margin-bottom:8px">'+t[0]+'</div>'
+      +'<button class="speak" id="spk">🔊 听讲座（先听，记要点后复述）</button>'
+      +'<button class="mic" id="mic">🎤 录自己复述</button>'
+      +'<button class="btn ghost" id="showTr" style="margin-top:10px">显示 / 隐藏 原文</button>'
+      +'<div class="ex" id="tr" style="margin-top:10px;font-size:13px;line-height:1.7">'+t[1]+'</div>'
+      +'<div class="hint">RL：听讲座，抓关键词后复述要点。流利度 > 内容。</div></div>';
+  } else if(it.type==='ASQ'){
+    const q=DATA.asq[idx%DATA.asq.length];
+    inner='<div class="card sp"><div class="ph">'+TN.ASQ+' · 第 '+(mockRun.idx+1)+'/'+total+'</div>'
+      +'<button class="speak" id="spk">🔊 听问题（可重复）</button>'
+      +'<button class="mic" id="mic">🎤 录自己口答</button>'
+      +'<div class="ex show" id="q" style="font-size:15px;line-height:1.6;margin-top:10px;background:#F7F9FA">'+q[0]+'</div>'
+      +'<button class="btn ghost" id="showAns" style="margin-top:12px">显示答案</button>'
+      +'<div class="ex" id="ans" style="margin-top:10px;font-size:13px;line-height:1.7">'+q[1]+'</div></div>';
+  } else if(it.type==='HIW'){
+    const hiw=DATA.hiw[idx%DATA.hiw.length];const correct=hiw[0],pairs=hiw[1];const wordSet=new Set(pairs.map(p=>p[0].toLowerCase()));const words=correct.split(/\s+/);let disp='';words.forEach(w=>{const clean=w.replace(/[^A-Za-z0-9]/g,'');if(wordSet.has(clean.toLowerCase())){disp+=' <span class="hiw-word" data-w="'+clean.toLowerCase()+'">'+w+'</span>';}else{disp+=' '+w;}});
+    inner='<div class="card li"><div class="ph">'+TN.HIW+' · 第 '+(mockRun.idx+1)+'/'+total+'</div>'
+      +'<button class="speak" id="spk">🔊 听音频（注意：音频 ≠ 原文！）</button>'
+      +'<div class="hint">音频里有若干词被替换成别的词。听完后，点下方原文里「音频说错」的词；点错扣分，最少 0 分。</div>'
+      +'<div class="ex show" id="tr" style="font-size:15px;line-height:2;margin-top:10px">'+disp+'</div>'
+      +'<div id="hiwRes"></div>'
+      +'<button class="btn" id="hiwChk" style="margin-top:12px">提交并看结果</button></div>';
   } else {
     inner='<div class="card wr"><div class="ph">'+(isSWT?TN.SWT:TN.WE)+' · 第 '+(mockRun.idx+1)+'/'+total+'</div>'
       +'<div class="ex show" style="margin-bottom:10px"><b>'+wp[0]+'</b><div style="margin-top:4px;color:#555">'+wp[1]+'</div></div>'
@@ -1270,7 +1295,7 @@ function renderMock(){
       +(isSWT?'<button class="btn" id="swtChk" style="margin-top:8px">自动核对关键词（对照范文）</button><div id="swtRes"></div>':'<button class="btn" id="weModelBtn" style="margin-top:8px">📖 对照机经范文</button><div id="weModel" style="display:none;margin-top:10px"></div>')
       +'<div class="hint">'+(isSWT?'SWT 只能写一句！系统按关键内容词覆盖率自动判分。':'WE 模板先行。本机不判分，建议 20 分钟。')+'</div></div>';
   }
-  const selfTypes={RA:1,RS:1,DI:1,WE:1};
+  const selfTypes={RA:1,RS:1,DI:1,WE:1,RL:1,ASQ:1};
   if(selfTypes[it.type]){
     const prev=(mockRun.scores[mockRun.idx])||0;
     inner+='<div class="mock-self"><span class="lab">本题自评</span>'
@@ -1285,7 +1310,7 @@ function renderMock(){
     +'<div class="row"><button class="btn ghost" id="mprev"'+(mockRun.idx===0?' disabled':'')+'>上一题</button>'
     +'<button class="btn" id="mnext">'+(mockRun.idx===total-1?'提交模考 ▶':'下一题 ▶')+'</button></div>'
     +'<div class="row"><button class="reset" id="mquit" style="flex:1">退出模考</button></div>';
-  const spk=$('#spk'); if(spk)spk.onclick=()=>{let txt; if(it.type==='RA')txt=DATA.ra_sen[idx]; else if(it.type==='RS')txt=DATA.rs_sen[idx%DATA.rs_sen.length]; else if(it.type==='DI')txt=DATA.di_topics[idx][1]; else if(it.type==='WFD')txt=DATA.wfdr[idx%DATA.wfdr.length][0]; else if(it.type==='SST')txt=DATA.pass[idx%DATA.pass.length][1]; else if(it.type==='FIB'){const q=DATA.fibrw[idx%DATA.fibrw.length];txt=q.p;} else txt=DATA.wp[idx%DATA.wp.length][1]; speak(txt);bump('l');};
+  const spk=$('#spk'); if(spk)spk.onclick=()=>{let txt; if(it.type==='RA')txt=DATA.ra_sen[idx]; else if(it.type==='RS')txt=DATA.rs_sen[idx%DATA.rs_sen.length]; else if(it.type==='DI')txt=DATA.di_topics[idx][1]; else if(it.type==='WFD')txt=DATA.wfdr[idx%DATA.wfdr.length][0]; else if(it.type==='SST')txt=DATA.pass[idx%DATA.pass.length][1]; else if(it.type==='FIB'){const q=DATA.fibrw[idx%DATA.fibrw.length];txt=q.p;} else if(it.type==='RL')txt=DATA.rl[idx%DATA.rl.length][1]; else if(it.type==='ASQ')txt=DATA.asq[idx%DATA.asq.length][0]; else if(it.type==='HIW'){const hiw=DATA.hiw[idx%DATA.hiw.length];let at=hiw[0];hiw[1].forEach(p=>{at=at.replace(new RegExp('\\b'+p[0]+'\\b','gi'),p[1]);});txt=at;} else txt=DATA.wp[idx%DATA.wp.length][1]; speak(txt);bump('l');};
   if($('#mic'))attachRec('mic');
   if(it.type==='WFD'){const d=DATA.wfdr[idx%DATA.wfdr.length];$('#chk').onclick=()=>{bump('l');const typed=$('#ans').value.trim().toLowerCase();const orig=d[0].toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);const got=typed.replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);let resHtml='<div class="ph" style="margin-top:10px">核对结果</div><div style="font-size:15px;line-height:1.8">';const mx=Math.max(orig.length,got.length);let okc=0;for(let k=0;k<mx;k++){const o=orig[k]||'',g=got[k]||'';if(o===g){resHtml+=' <span class="tok-ok">'+(g||'·')+'</span>';if(o)okc++;}else{resHtml+=' <span class="tok-no">'+(g||'__')+'</span>';}}const pct=orig.filter(Boolean).length?(okc/orig.filter(Boolean).length*100|0):0;mockRun.auto[mockRun.idx]=pct;mockRun.wfdText[mockRun.idx]=$('#ans').value;const ad=$('#autoD');if(ad)ad.textContent='听力 '+pct+'%';const key=d[0];if(!wfdAcc[key])wfdAcc[key]={n:0,c:0};wfdAcc[key].n++;if(pct>=80)wfdAcc[key].c++;save('pte_wfd',wfdAcc);resHtml+='</div><div class="hint">'+okc+'/'+orig.filter(Boolean).length+' 词正确 ('+pct+'%) · 原文：'+d[0]+'</div>';$('#res').innerHTML=resHtml;$('#cn').style.display='block';};}
   if(it.type==='SST'&&$('#flip'))$('#flip').onclick=()=>{$('#cn').classList.add('show');$('#flip').textContent='已显示中文';};
@@ -1296,6 +1321,9 @@ function renderMock(){
   if(it.type==='RO'&&$('#roChk')){const item=DATA.ro[idx%DATA.ro.length];wireRO(item, idx%DATA.ro.length, function(pct){mockRun.auto[mockRun.idx]=pct;const ad=$('#autoD');if(ad)ad.textContent='阅读 '+pct+'%';});}
   if(it.type==='MCSA'&&$('#mcChk')){const it2=DATA.mcsa[idx%DATA.mcsa.length];wireMCSA(it2, idx%DATA.mcsa.length, function(pct){mockRun.auto[mockRun.idx]=pct;const ad=$('#autoD');if(ad)ad.textContent='阅读 '+pct+'%';});}
   if(it.type==='MCMA'&&$('#mcChk')){const it2=DATA.mcma[idx%DATA.mcma.length];wireMCMA(it2, idx%DATA.mcma.length, function(pct){mockRun.auto[mockRun.idx]=pct;const ad=$('#autoD');if(ad)ad.textContent='阅读 '+pct+'%';});}
+  if(it.type==='RL'&&$('#showTr'))$('#showTr').onclick=()=>{$('#tr').classList.toggle('show');};
+  if(it.type==='ASQ'&&$('#showAns'))$('#showAns').onclick=()=>{$('#ans').classList.toggle('show');};
+  if(it.type==='HIW'&&$('#hiwChk')){const hiw=DATA.hiw[idx%DATA.hiw.length];const correctSet=new Set(hiw[1].map(p=>p[0].toLowerCase()));document.querySelectorAll('.hiw-word').forEach(el=>el.onclick=()=>el.classList.toggle('hiw-on'));$('#hiwChk').onclick=()=>{const tapped=Array.from(document.querySelectorAll('.hiw-word.hiw-on')).map(e=>e.dataset.w);let score=tapped.filter(w=>correctSet.has(w)).length-tapped.filter(w=>!correctSet.has(w)).length;score=Math.max(0,score);const total=correctSet.size;const pct=total?Math.round(score/total*100):100;mockRun.auto[mockRun.idx]=pct;const ad=$('#autoD');if(ad)ad.textContent='听力 '+pct+'%';document.querySelectorAll('.hiw-word').forEach(el=>{const w=el.dataset.w;if(correctSet.has(w)){el.style.background=el.classList.contains('hiw-on')?'rgba(14,122,107,.18)':'rgba(183,121,31,.18)';el.style.borderBottomColor=el.classList.contains('hiw-on')?'var(--green)':'var(--amber)';}else if(el.classList.contains('hiw-on')){el.style.background='rgba(192,57,43,.18)';el.style.borderBottomColor='var(--red)';}});$('#hiwRes').innerHTML='<div class="ph" style="margin-top:10px">你的得分 '+score+' / '+total+'（'+pct+'%）</div><div class="hint" style="margin-top:0">绿=点对的错词；橙=漏点的错词；红=误点的正确词。音频实际说的是：'+hiw[1].map(p=>p[0]+' → '+p[1]).join('，')+'</div>';};}
   if(it.type==='WE'||it.type==='SWT'){const essay=$('#essay');if(essay){const upd=()=>{const w=essay.value.trim().split(/\s+/).filter(Boolean).length;const mx=wp[0].startsWith('SWT')?75:300;$('#wc').textContent=w+' / '+mx+' 词';};essay.oninput=upd;upd();}}
   if(it.type==='WE'&&$('#weModelBtn')){const weMb=$('#weModelBtn');const weMd=$('#weModel');const hasM=wp[2]&&wp[2].trim().length>40;weMb.style.display=hasM?'inline-block':'none';weMb.onclick=()=>{if(weMd.style.display==='none'){weMd.style.display='block';weMd.innerHTML='<div style="font-size:14.5px;line-height:1.9;white-space:pre-wrap;color:#222;background:#F7F9FB;border:1px solid #E3E8EC;border-radius:8px;padding:12px">'+(wp[2]||'(暂无范文)')+'</div>';weMb.textContent='🙈 隐藏机经范文';}else{weMd.style.display='none';weMb.textContent='📖 对照机经范文';}};}
   if(isSWT&&$('#swtChk')){$('#swtChk').onclick=()=>{const g=gradeSWT($('#essay').value, wp[2]||wp[1]);mockRun.auto[mockRun.idx]=g.pct;const ad=$('#autoD');if(ad)ad.textContent='写作 '+g.pct+'%';const kwh=g.keys.map(k=>'<span class="'+(g.hit.includes(k)?'tok-ok':'tok-no')+'">'+k+'</span>').join(' ');$('#swtRes').innerHTML='<div class="ph" style="margin-top:10px">关键内容词覆盖 '+g.hit.length+'/'+g.keys.length+'（'+g.pct+'%）· '+$('#essay').value.trim().split(/\s+/).filter(Boolean).length+' 词</div><div style="font-size:14px;line-height:1.9;margin-top:4px">'+kwh+'</div><div class="hint" style="margin-top:4px">范文：'+(wp[2]||wp[1])+'</div>';};}
