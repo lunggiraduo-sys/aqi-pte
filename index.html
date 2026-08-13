@@ -252,35 +252,6 @@ if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pick
 let speechReady=false;
 function speak(t){if(!('speechSynthesis' in window)){alert('此浏览器不支持朗读，请用 Safari/Chrome');return;}if(!speechReady){const d=new SpeechSynthesisUtterance('');d.volume=0;speechSynthesis.speak(d);speechReady=true;}try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='en-US';u.rate=.92;u.pitch=1;if(voice)u.voice=voice;speechSynthesis.speak(u);}catch(e){}}
 
-// 逐词对照跟读：点词朗读 + 逐词慢速连播
-function wordCards(text,id){
-  if(!text)return '';
-  const words=text.match(/[A-Za-z0-9][A-Za-z0-9'’.\-]*/g)||[];
-  if(!words.length)return '';
-  return '<div class="wordcards" id="'+id+'">'+words.map(w=>'<button class="wordcard" data-w="'+w.replace(/'/g,'&#39;')+'">'+w+'</button>').join('')+'</div>';
-}
-function speakWord(w){
-  if(!('speechSynthesis' in window))return;
-  if(!speechReady){const d=new SpeechSynthesisUtterance('');d.volume=0;speechSynthesis.speak(d);speechReady=true;}
-  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(w);u.lang='en-US';u.rate=.8;u.pitch=1;if(voice)u.voice=voice;speechSynthesis.speak(u);}catch(e){}
-}
-function speakWords(text,gap){
-  const words=(text||'').match(/[A-Za-z0-9][A-Za-z0-9'’.\-]*/g)||[];
-  if(!words.length)return;
-  let i=0;
-  function step(){
-    if(i>=words.length)return;
-    const u=new SpeechSynthesisUtterance(words[i]);u.lang='en-US';u.rate=.78;u.pitch=1;if(voice)u.voice=voice;
-    u.onend=()=>{i++;setTimeout(()=>{if(i<words.length)step();},gap);};
-    if(!speechReady){const d=new SpeechSynthesisUtterance('');d.volume=0;speechSynthesis.speak(d);speechReady=true;}
-    speechSynthesis.speak(u);
-  }
-  step();
-}
-function wireWordCards(id){
-  const box=document.getElementById(id); if(!box)return;
-  box.querySelectorAll('.wordcard').forEach(b=>{b.onclick=()=>{b.classList.add('on');speakWord(b.dataset.w);setTimeout(()=>b.classList.remove('on'),450);};});
-}
 // 录音
 function attachRec(btnId){
   const btn=document.getElementById(btnId);
@@ -719,8 +690,6 @@ function renderListen(){
     html+='<div class="card li">'+STAR('sst',lIdx)+'<div class="ph">SST 机经精听 · '+(lIdx+1)+'/'+DATA.pass.length+'</div>'
       +'<button class="speak" id="spk">🔊 听英文</button>'
       +'<div class="ex show" id="en"><div class="en">'+highlightKeys(p[1])+'</div></div>'
-      +'<button class="speak" id="sstWbtn" style="margin-top:8px">🔤 逐词慢速连播讲座</button>'
-      +wordCards(p[1],'sstWords')
       +'<div class="cn" id="cn">'+p[2]+'</div>'
       +'<div class="kwlist">关键词：'+keys.map(k=>'<span class="kwchip">'+k+'</span>').join('')+'</div>'
       +'<div class="flip-tip" id="flip">👆 点英文看中文</div>'
@@ -775,16 +744,13 @@ function renderListen(){
       const key=d[0]; if(!wfdAcc[key])wfdAcc[key]={n:0,c:0}; wfdAcc[key].n++; if(pct>=80)wfdAcc[key].c++; save('pte_wfd',wfdAcc);
       accLog.push({ts:Date.now(),type:'WFD',pct:pct}); save('pte_acclog',accLog);
       resHtml+='</div><div class="hint">'+okc+'/'+orig.filter(Boolean).length+' 词正确 ('+pct+'%) · 原文：'+d[0]+'</div>';
-      resHtml+='<div style="margin-top:10px"><button class="speak" id="wfdWbtn">🔤 逐词慢速连播</button>'+wordCards(d[0],'wfdWords')+'</div>';
       const weak=Object.entries(wfdAcc).filter(([k,v])=>v.n>=2&&v.c/v.n<0.8).map(([k,v])=>(v.c/v.n*100|0)+'% · '+k);
       if(weak.length)resHtml+='<details style="margin-top:8px"><summary style="font-size:12.5px;color:var(--red);cursor:pointer">🔴 我的薄弱句 ('+weak.length+')</summary>'+weak.map(w=>'<div style="font-size:12px;color:#555;padding:4px 0;border-bottom:1px solid var(--line)">'+w+'</div>').join('')+'</details>';
       $('#res').innerHTML=resHtml;$('#cn').style.display='block';$('#res').scrollIntoView({behavior:'smooth',block:'nearest'});
-      const wb=$('#wfdWbtn'); if(wb){wb.onclick=()=>speakWords(d[0],650);wireWordCards('wfdWords');}
     };
     $('#nextWFD').onclick=()=>{lIdx++;bump('l');renderListen();};
   } else if(lTab==='sst'){
     $('#spk').onclick=()=>{speak(DATA.pass[lIdx][1]);bump('l');};
-    const wb=$('#sstWbtn'); if(wb){wb.onclick=()=>{speakWords(DATA.pass[lIdx][1],650);wireWordCards('sstWords');};}
     const flip=$('#flip'); flip.onclick=()=>{$('#cn').classList.add('show');flip.textContent='已显示中文 · 再点隐藏';};
     $('#cn').onclick=()=>{$('#cn').classList.remove('show');flip.textContent='👆 点英文看中文';};
     $('#prevL').onclick=()=>{lIdx=(lIdx-1+DATA.pass.length)%DATA.pass.length;renderListen();};
@@ -841,8 +807,6 @@ function renderSpeaking(){
     const wc=s.split(/\s+/).length, fs=wc>60?'14px':wc>45?'15px':'16px';
     html+='<div class="card sp">'+STAR('ra',sIdx)+'<div class="ph">RA 大声朗读 · '+(sIdx+1)+'/'+DATA.ra_sen.length+'</div>'
       +'<div class="ex show" style="font-size:'+fs+';line-height:1.7;padding:12px">'+s+'</div>'
-      +'<button class="speak" id="raWbtn">🔤 逐词慢速连播</button>'
-      +wordCards(s,'raWords')
       +'<button class="speak" id="spk">🔊 听标准发音</button>'
       +'<button class="mic" id="mic">🎤 录自己朗读</button>'
       +'<button class="shadow" id="shadow">🔊🔁 影子跟读 A/B 连播</button>'
@@ -857,8 +821,6 @@ function renderSpeaking(){
       +'<button class="shadow" id="shadow">🔊🔁 影子跟读 A/B 连播</button>'
       +'<div class="cn" id="cn">'+d[0]+'<br><small style="color:var(--muted)">'+d[1]+'</small></div>'
       +'<div class="flip-tip" id="flip">👆 复述完点这里看原文</div>'
-      +'<button class="speak" id="rsWbtn">🔤 逐词慢速连播</button>'
-      +wordCards(d[0],'rsWords')
       
       +'<div class="hint">RS 占口语 25%+听力 20%。听时抓意群主干，宁可说短也别卡。每句只听一遍！</div>'
       +'<div class="row"><button class="btn" id="nextS" style="flex:1">下一句 ▶</button></div></div>';
@@ -867,8 +829,6 @@ function renderSpeaking(){
     html+='<div class="card sp">'+STAR('di',sIdx)+'<div class="ph">DI 描述图表 · '+(sIdx+1)+'/'+DATA.di_topics.length+'</div>'
       +'<div style="margin:8px 0 12px;background:#FAFBFC;border:1px solid var(--line);border-radius:10px;padding:8px;">'+DATA.di_svgs[sIdx]+'</div>'
       +'<div class="ex show" style="font-size:13px;line-height:1.6;background:#FFF8EC;border-color:#F0E0BF;margin-bottom:10px"><b>'+t[0]+'</b><div style="margin-top:6px;color:#555">参考模板：<br>'+t[1]+'</div></div>'
-      +'<button class="speak" id="diWbtn">🔤 逐词慢速连播模板</button>'
-      +wordCards(t[1],'diWords')
       +'<button class="speak" id="spk">🔊 听模板发音</button>'
       +'<button class="mic" id="mic">🎤 录自己描述（25秒准备→40秒说）</button>'
       
@@ -886,8 +846,6 @@ function renderSpeaking(){
       
       +'<button class="btn ghost" id="showSamp" style="margin-top:8px">显示 高分范文</button>'
       +'<div class="ex" id="samp" style="margin-top:10px;font-size:13px;line-height:1.7;background:#EAF4F5">'+t[2]+'</div>'
-      +'<button class="speak" id="rlWbtn" style="margin-top:10px">🔤 逐词慢速连播范文</button>'
-      +wordCards(t[2],'rlWords')
       +'<div class="row"><button class="btn ghost" id="prevS">上一篇</button><button class="btn" id="nextS">下一篇</button></div></div>';
   } else if(sTab==='asq'){
     const q=DATA.asq[sIdx%DATA.asq.length];
@@ -895,8 +853,6 @@ function renderSpeaking(){
       +'<button class="speak" id="spk">🔊 听问题（可重复）</button>'
       +'<button class="mic" id="mic">🎤 录自己口答</button>'
       +'<div class="ex show" id="q" style="font-size:15px;line-height:1.6;margin-top:10px;background:#F7F9FA">'+q[0]+'</div>'
-      +'<button class="speak" id="asqWbtn" style="margin-top:8px">🔤 逐词慢速连播问题</button>'
-      +wordCards(q[0],'asqWords')
       +'<button class="btn ghost" id="showAns" style="margin-top:12px">显示答案</button>'
       +'<div class="ex" id="ans" style="margin-top:10px;font-size:15px;font-weight:600;color:var(--slate);background:#EAF4F5">'+q[1]+'</div>'
       +'<div style="margin-top:12px;display:none" id="markRow"><div style="font-size:13px;color:var(--muted);margin-bottom:6px">你答对了吗？</div>'
@@ -910,7 +866,6 @@ function renderSpeaking(){
   if(sTab==='ra'){
     $('#spk').onclick=()=>{speak(DATA.ra_sen[sIdx]);bump('l');};
     $('#shadow').onclick=()=>{speakSeq([DATA.ra_sen[sIdx],DATA.ra_sen[sIdx]],1200);};
-    $('#raWbtn').onclick=()=>speakWords(s,650); wireWordCards('raWords');
     attachRec('mic');
     
     $('#prevS').onclick=()=>{sIdx=(sIdx-1+DATA.ra_sen.length)%DATA.ra_sen.length;renderSpeaking();};
@@ -918,14 +873,12 @@ function renderSpeaking(){
   } else if(sTab==='rs'){
     $('#spk').onclick=()=>{speak(DATA.rs_sen[sIdx%DATA.rs_sen.length]);bump('l');};
     $('#shadow').onclick=()=>{speakSeq([DATA.rs_sen[sIdx%DATA.rs_sen.length],DATA.rs_sen[sIdx%DATA.rs_sen.length]],1200);};
-    $('#rsWbtn').onclick=()=>speakWords(d[0],650); wireWordCards('rsWords');
     attachRec('mic');
     
     $('#nextS').onclick=()=>{sIdx=(sIdx+1)%DATA.rs_sen.length;renderSpeaking();bump('l');};
     const flip=$('#flip'); flip.onclick=()=>{$('#cn').classList.add('show');};
   } else if(sTab==='di'){
     $('#spk').onclick=()=>{speak(DATA.di_topics[sIdx][1]);bump('l');};
-    $('#diWbtn').onclick=()=>speakWords(t[1],650); wireWordCards('diWords');
     attachRec('mic');
     
     $('#prevS').onclick=()=>{sIdx=(sIdx-1+DATA.di_topics.length)%DATA.di_topics.length;renderSpeaking();};
@@ -935,7 +888,6 @@ function renderSpeaking(){
     $('#spk').onclick=()=>{speak(t[1]);bump('l');};
     $('#showTr').onclick=()=>$('#tr').classList.toggle('show');
     $('#showSamp').onclick=()=>$('#samp').classList.toggle('show');
-    $('#rlWbtn').onclick=()=>speakWords(t[2],650); wireWordCards('rlWords');
     attachRec('mic');
     
     $('#prevS').onclick=()=>{sIdx=(sIdx-1+DATA.rl.length)%DATA.rl.length;renderSpeaking();};
@@ -943,7 +895,6 @@ function renderSpeaking(){
   } else if(sTab==='asq'){
     const q=DATA.asq[sIdx%DATA.asq.length];
     $('#spk').onclick=()=>{speak(q[0]);bump('l');};
-    $('#asqWbtn').onclick=()=>speakWords(q[0],650); wireWordCards('asqWords');
     attachRec('mic');
     $('#showAns').onclick=()=>{$('#ans').classList.add('show');$('#markRow').style.display='block';};
     $('#rt').onclick=()=>{alert('👍 答对了，过！');};
