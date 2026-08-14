@@ -11,8 +11,11 @@
 <link rel="apple-touch-icon" href="icon.svg">
 <title>阿奇PTE</title>
 <style>
-  :root{--slate:#33495F;--teal:#2C8C99;--bg:#F4F6F7;--card:#FFFFFF;--line:#DDE3E6;--muted:#6B7780;--amber:#B7791F;--red:#C0392B;--green:#0E7A6B;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);}
+  :root{--slate:#33495F;--teal:#1F6E78;--bg:#F4F6F7;--card:#FFFFFF;--line:#DDE3E6;--muted:#54616B;--amber:#8A5A12;--red:#C0392B;--green:#0E7A6B;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  /* 键盘可达性：用实体键盘/蓝牙键盘/辅助功能导航时显示清晰焦点环（触屏点击不触发，避免干扰） */
+  :focus-visible{outline:2.5px solid var(--teal);outline-offset:2px;border-radius:6px;}
+  a:focus-visible,button:focus-visible,.btn:focus-visible,.speak:focus-visible,.mic:focus-visible,.mini:focus-visible,.tlink:focus-visible,nav button:focus-visible{outline:2.5px solid var(--teal);outline-offset:2px;}
   html{overscroll-behavior:none;overflow-x:hidden;}
   body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:#222;-webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;overflow-x:hidden;position:relative;}
   /* iPhone tuning：清掉 iOS 原生控件外观 + 屏蔽 UI 长按弹出菜单（机经正文仍可选中复制） */
@@ -108,7 +111,7 @@
   .tip{background:#FFF8EC;border:1px solid #F0E0BF;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;color:#7a5a1e;margin-bottom:12px;}
   .tip b{color:#B7791F;}
   .tpb{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:10px;margin-right:4px;vertical-align:middle;}
-  .tpb.sp{background:#FDEBD0;color:#B7791F;} .tpb.li{background:#EAF4F5;color:var(--teal);} .tpb.rw{background:#F3F1F8;color:#5E51A8;} .tpb.wr{background:#FBEDEA;color:var(--red);}
+  .tpb.sp{background:#F7ECD8;color:#8A5A12;} .tpb.li{background:#EAF4F5;color:var(--teal);} .tpb.rw{background:#F3F1F8;color:#5E51A8;} .tpb.wr{background:#FBEDEA;color:var(--red);}
   .ring-wrap{display:flex;justify-content:center;gap:24px;margin-bottom:12px;}
   .ring{text-align:center;}
   .ring svg{display:block;margin:0 auto;}
