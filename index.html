@@ -473,14 +473,14 @@ function wrongBookHtml(){
   let h='<div class="card"><div class="ph">🔴 我的错题本</div>';
   if(wfdWeak.length){
     h+='<div style="font-size:12.5px;color:var(--slate);font-weight:600;margin:4px 0 2px">薄弱 WFD 句（'+wfdWeak.length+'，点🔊听）</div>';
-    wfdWeak.slice(0,5).forEach(k=>{const idx=DATA.wfdr.findIndex(s=>s[0]===k);h+='<div class="weak-row" data-spk="'+(idx>=0?idx:'')+'">🔊 '+k+'</div>';});
-    if(wfdWeak.length>5)h+='<div class="adpt" data-tab="listen" data-sub="wfd">🔗 还有 '+(wfdWeak.length-5)+' 句，去 WFD 重练</div>';
+    wfdWeak.slice(0,5).forEach(k=>{const idx=DATA.wfdr.findIndex(s=>s[0]===k);h+='<div class="weak-row" tabindex="0" role="button" data-spk="'+(idx>=0?idx:'')+'">🔊 '+k+'</div>';});
+    if(wfdWeak.length>5)h+='<div class="adpt" tabindex="0" role="button" data-tab="listen" data-sub="wfd">🔗 还有 '+(wfdWeak.length-5)+' 句，去 WFD 重练</div>';
   }
-  if(fibWeak.length)h+='<div class="adpt" data-tab="rw" data-sub="fibread">🔗 薄弱 FIB 阅读填空 '+fibWeak.length+' 段 →</div>';
-  if(sstWeak.length)h+='<div class="adpt" data-tab="listen" data-sub="sst">🔗 薄弱 SST 关键词 '+sstWeak.length+' 篇 →</div>';
-  if(roWeak.length)h+='<div class="adpt" data-tab="read" data-sub="ro">🔗 薄弱 RO 段落排序 '+roWeak.length+' 段 →</div>';
-  if(mcWeak.length)h+='<div class="adpt" data-tab="read" data-sub="mcsa">🔗 薄弱 阅读单选/多选 '+mcWeak.length+' 题 →</div>';
-  if(rv)h+='<div class="adpt" data-tab="rw" data-sub="fib">🔗 待复习词 '+rv+' 个 →</div>';
+  if(fibWeak.length)h+='<div class="adpt" tabindex="0" role="button" data-tab="rw" data-sub="fibread">🔗 薄弱 FIB 阅读填空 '+fibWeak.length+' 段 →</div>';
+  if(sstWeak.length)h+='<div class="adpt" tabindex="0" role="button" data-tab="listen" data-sub="sst">🔗 薄弱 SST 关键词 '+sstWeak.length+' 篇 →</div>';
+  if(roWeak.length)h+='<div class="adpt" tabindex="0" role="button" data-tab="read" data-sub="ro">🔗 薄弱 RO 段落排序 '+roWeak.length+' 段 →</div>';
+  if(mcWeak.length)h+='<div class="adpt" tabindex="0" role="button" data-tab="read" data-sub="mcsa">🔗 薄弱 阅读单选/多选 '+mcWeak.length+' 题 →</div>';
+  if(rv)h+='<div class="adpt" tabindex="0" role="button" data-tab="rw" data-sub="fib">🔗 待复习词 '+rv+' 个 →</div>';
   h+='<div class="hint" style="margin-top:8px">这些从你平时练习自动收集，是提分最快的攻克点。</div></div>';
   return h;
 }
@@ -499,7 +499,7 @@ function renderToday(){
     const tn=taskNav(t);
     let html=t;
     if(stage==='P0'&&t.indexOf('模考')>=0) html='做 1 套免费模考摸底（点「计划」→ P0 看指引）';
-    return '<li><input type="checkbox" data-i="'+i+'" '+chk+'><span'+(tn?' class="tlink" onclick="goNav(\''+tn[0]+'\',\''+(tn[1]||'')+'\')"':'')+'>'+html+'</span></li>';
+    return '<li><input type="checkbox" data-i="'+i+'" '+chk+'><span'+(tn?' class="tlink" tabindex="0" role="button" onclick="goNav(\''+tn[0]+'\',\''+(tn[1]||'')+'\')"':'')+'>'+html+'</span></li>';
   }).join('');
   // 考试倒计时（鹿茸经验：先报名定死日期，大幅克服拖延）
   let examHtml;
@@ -521,7 +521,7 @@ function renderToday(){
     +(allDone?'<div class="chk">✅ 今日任务全完成，收工！</div>':'<div class="hint">标「点XX」的，点对应底部页签在通勤中完成。模考需 myPTE 在线做。</div>')
     +'</div>'
     +'<div class="card"><div class="ph">🎯 今日自适应加练</div>'
-    +adaptiveTasks().map(a=>'<div class="adpt" data-tab="'+a[1]+'" data-sub="'+(a[2]||'')+'">🔗 '+a[0]+'</div>').join('')
+    +adaptiveTasks().map(a=>'<div class="adpt" tabindex="0" role="button" data-tab="'+a[1]+'" data-sub="'+(a[2]||'')+'">🔗 '+a[0]+'</div>').join('')
     +'<div class="hint" style="margin-top:8px">按你的薄弱项（待复习词 / 薄弱 WFD·FIB·SST / 能力曲线最弱模块）自动生成，点链接直达练习。</div></div>'
     +wrongBookHtml()
     +'<div class="card"><div class="ph">今日进度</div>'
@@ -800,7 +800,7 @@ function fibrHtml(it){
   const passage=it[0], ans=it[2];
   const parts=passage.split(/___\(\d+\)/g);
   let h='';
-  for(let k=0;k<parts.length;k++){ h+=parts[k]; if(k<ans.length){ h+='<span class="fibblank" data-b="'+(k+1)+'" style="display:inline-block;min-width:84px;border-bottom:2px dashed var(--teal);margin:0 4px;padding:2px 6px;text-align:center;cursor:pointer;color:var(--slate);font-weight:600">　</span>'; } }
+  for(let k=0;k<parts.length;k++){ h+=parts[k]; if(k<ans.length){ h+='<span class="fibblank" tabindex="0" role="button" data-b="'+(k+1)+'" style="display:inline-block;min-width:84px;border-bottom:2px dashed var(--teal);margin:0 4px;padding:2px 6px;text-align:center;cursor:pointer;color:var(--slate);font-weight:600">　</span>'; } }
   const shuffled=shuffle(it[1].slice());
   return '<div class="fibpass" style="font-size:14.5px;line-height:2;color:#333;margin:10px 0">'+h+'</div>'
     +'<div style="margin:12px 0 6px;font-size:12.5px;color:var(--muted)">👇 点单词选中，再点下方空白处填入（点已填处可清除，重选会替换）：</div>'
@@ -1748,6 +1748,17 @@ function renderMine(){
 
 function switchTab(t){curTab=t;if(t!=='mock')clearMockTimer();document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));if(t==='today'){renderToday();}else if(t==='practice'){renderPractice();}else if(t==='mock'){renderMock();}else if(t==='plan'){renderPlan();}else if(t==='mine'){renderMine();}}
 body.addEventListener('click',e=>{const b=e.target.closest('[data-fav]');if(b){const p=b.dataset.fav.split(':');toggleFav(p[0],+p[1],favText(p[0],+p[1]));switchTab(curTab);}});
+// 键盘可达性：role=button 的 div/span 点按目标支持 Enter/Space 激活（原生 button/input 等不受影响，避免重复触发）
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const el=e.target;
+  if(!el||el===document.body)return;
+  if(el.getAttribute('role')!=='button')return;
+  const t=el.tagName;
+  if(t==='BUTTON'||t==='A'||t==='INPUT'||t==='SELECT'||t==='TEXTAREA'||t==='SUMMARY')return;
+  e.preventDefault();
+  el.click();
+});
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.t));
 updateTop();
 switchTab('today');
@@ -1826,7 +1837,7 @@ function showOnboard(){
     +'<div class="ob-t">阿奇PTE 私人冲刺教练</div>'
     +'<div class="ob-s">先花 <b>5 分钟</b> 做一次摸底，我会根据你的薄弱项，自动生成你的 <b>第一周计划</b>。<br>之后所有功能为你解锁。</div>'
     +'<button class="ob-btn" id="obStart">用 5 分钟做一次摸底，生成第一周计划</button>'
-    +'<div class="ob-skip" id="obSkip">先随便逛逛 →</div></div>';
+    +'<div class="ob-skip" tabindex="0" role="button" id="obSkip">先随便逛逛 →</div></div>';
   const s=document.getElementById('obStart'); if(s)s.onclick=()=>startDiag();
   const sk=document.getElementById('obSkip'); if(sk)sk.onclick=()=>{onboarded=1;save('pte_onboarded',1);ob.className='';};
 }
