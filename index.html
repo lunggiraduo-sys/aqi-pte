@@ -201,6 +201,35 @@
   .sr-sent.sr-cur{background:var(--teal);color:#fff;font-weight:600;}
   /* iPhone 排版加固：长英文/URL 不撑破视口 */
   .ex,.cn,.tip,.exam,.ph,.card,.mock,.stat,.stinfo,.tlink,.real,.weak-box,.overall-box{overflow-wrap:anywhere;word-break:break-word;}
+  /* 处方卡：把记录变成提分决策 */
+  .rx-card{background:linear-gradient(135deg,#EAF4F5,#F4F8F8);border:1px solid #C9DDE0;border-radius:14px;padding:14px 14px 10px;margin-bottom:12px;}
+  .rx-h{font-size:14px;font-weight:700;color:var(--teal);margin-bottom:8px;letter-spacing:.5px;}
+  .rx-row{display:flex;gap:8px;padding:5px 0;font-size:13.5px;line-height:1.5;}
+  .rx-k{flex:0 0 64px;color:var(--muted);font-weight:600;}
+  .rx-v{flex:1;color:var(--slate);}
+  .rx-v b{color:var(--red);}
+  /* onboarding 蒙层 */
+  #onboard{position:fixed;inset:0;z-index:50;background:rgba(244,247,247,.97);backdrop-filter:blur(2px);display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px 22px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  #onboard.show{display:flex;}
+  .ob-card{max-width:440px;width:100%;text-align:center;}
+  .ob-logo{font-size:40px;margin-bottom:6px;}
+  .ob-t{font-size:23px;font-weight:800;color:var(--slate);margin:6px 0;}
+  .ob-s{font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:22px;}
+  .ob-btn{display:block;width:100%;background:var(--teal);color:#fff;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(44,140,153,.28);}
+  .ob-btn:active{transform:translateY(1px);}
+  .ob-skip{margin-top:16px;font-size:13px;color:var(--muted);text-decoration:underline;cursor:pointer;}
+  .ob-prog{font-size:12px;color:var(--muted);margin-bottom:10px;}
+  .ob-q{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;text-align:left;margin-bottom:14px;}
+  .ob-q .ph{font-size:14px;margin-bottom:8px;}
+  .ob-q textarea,.ob-q input[type=text]{width:100%;box-sizing:border-box;font-size:15px;padding:10px;border:1px solid var(--line);border-radius:10px;font-family:inherit;}
+  .ob-rate{display:flex;gap:8px;justify-content:center;margin:10px 0;}
+  .ob-rate button{flex:1;border:1px solid var(--line);background:#fff;border-radius:10px;padding:12px 0;font-size:17px;font-weight:700;color:var(--slate);cursor:pointer;}
+  .ob-rate button.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .ob-plan{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;text-align:left;margin-bottom:14px;max-height:46vh;overflow-y:auto;}
+  .ob-plan .day{margin-bottom:10px;}
+  .ob-plan .dn{font-size:13px;font-weight:700;color:var(--teal);}
+  .ob-plan .dt{font-size:13px;color:var(--slate);line-height:1.6;margin:2px 0 0 8px;}
+  .onboard-badge{display:inline-block;background:#EAF4F5;color:var(--teal);border:1px solid #C9DDE0;border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;margin-bottom:8px;}
 </style>
 </head>
 <body>
@@ -210,6 +239,7 @@
   <p>计划驱动 · 录音纠音 · 离线可用</p>
 </header>
 <div class="body" id="body"></div>
+<div id="onboard"></div>
 <nav id="nav">
   <button data-t="today" class="on">今日</button>
   <button data-t="practice">练习</button>
@@ -256,6 +286,9 @@ let hist=load('pte_hist',[]);
 let accLog=load('pte_acclog',[]);
 let spk=load('pte_spk',{}); // 口语评分记录
 let wrtData=load('pte_wrt',{}); // WE 官方量规自评：key=wIdx -> {traitIdx:score}
+let causes=load('pte_causes',{}); // 错因累计：{WFD:{n,miss,spell,func}, ...}
+let onboarded=load('pte_onboarded',0); // 0/1 是否完成首次摸底
+let onplan=load('pte_onplan',null); // 自动生成的第一周计划 {gen, weak, days:[{date,tasks:[{t,done}]}]}
 
 // 发音 voice 锁定 en-US
 let voice=null;
@@ -461,6 +494,8 @@ function renderToday(){
   }
   const tipHtml='<div class="tip">🔥 PTE 提分核心：<b>RS / WFD / DI / RA / FIB</b> 占分最高——博主说"没时间就先练这 5 个"。口语页练 RS/RA/DI，听力页练 WFD。</div>';
   body.innerHTML=examHtml+tipHtml
+    +(onplan?onplanCard():'')
+    +prescriptionCard()
     +'<div class="card"><div class="ph">今日任务 · '+stage+' 阶段</div>'
     +(todays.done.length?'<div class="pbar"><div class="pfill" style="width:'+Math.round(todays.done.filter(Boolean).length/todays.done.length*100)+'%"></div></div><div class="ph-sub">已完成 '+todays.done.filter(Boolean).length+' / '+todays.done.length+' 项</div>':'')
     +'<ul class="tasks" id="tasks">'+liHtml+'</ul>'
@@ -483,6 +518,7 @@ function renderToday(){
   const exEdit=$('#exEdit'); if(exEdit) exEdit.onclick=()=>{exam={date:'',set:false};save('pte_exam',exam);renderToday();};
   body.querySelectorAll('.adpt').forEach(el=>el.onclick=()=>goNav(el.dataset.tab, el.dataset.sub));
   body.querySelectorAll('[data-spk]').forEach(el=>el.onclick=()=>{const i=+el.dataset.spk; if(i>=0&&DATA.wfdr[i])speak(DATA.wfdr[i][0]);});
+  body.querySelectorAll('[data-odi]').forEach(cb=>cb.onchange=()=>{const di=onplan.days.findIndex(d=>d.date===todayStr());const day=onplan.days[di<0?0:di];day.tasks[+cb.dataset.odi].done=cb.checked;save('pte_onplan',onplan);});
 }
 
 // 读写（FIB 填空 + 写作模板）
@@ -938,7 +974,8 @@ function renderListen(){
       const max=Math.max(orig.length,got.length);let okc=0;
       for(let k=0;k<max;k++){const o=orig[k]||'',g=got[k]||'';if(o===g){resHtml+=' <span class="tok-ok">'+(g||'·')+'</span>';if(o)okc++;}else{resHtml+=' <span class="tok-no">'+(g||'__')+'</span>';}}
       const pct=orig.filter(Boolean).length?(okc/orig.filter(Boolean).length*100|0):0;
-      // 记录准确率
+      // 记录准确率 + 错因分类
+      const _cl=classifyWFD(typed,d[0]); recCause('WFD',_cl);
       const key=d[0]; if(!wfdAcc[key])wfdAcc[key]={n:0,c:0}; wfdAcc[key].n++; if(pct>=80)wfdAcc[key].c++; save('pte_wfd',wfdAcc);
       accLog.push({ts:Date.now(),type:'WFD',pct:pct}); save('pte_acclog',accLog);
       resHtml+='</div><div class="hint">'+okc+'/'+orig.filter(Boolean).length+' 词正确 ('+pct+'%) · 原文：'+d[0]+'</div>';
@@ -1209,7 +1246,7 @@ const PTE_BANDS=[
   {lo:10,hi:29,cefr:'A1',desc:'仅能理解日常基本用语，沟通能力有限。'}
 ];
 function pteBand(score){score=Math.max(10,Math.min(90,score));return PTE_BANDS.find(b=>score>=b.lo&&score<=b.hi)||PTE_BANDS[PTE_BANDS.length-1];}
-// 练习 0–100 → PTE 当量估算（非官方启发式，锚定官方档位边界，仅供进度参考）
+// 练习 0–100 → 训练表现参考区间（非官方预测；启发式，锚定官方档位边界，仅供进度参考）
 function pteEquiv(p){
   p=Math.max(0,Math.min(100,p));
   const pts=[[0,10],[55,50],[70,58],[80,65],[92,79],[100,90]];
@@ -1392,8 +1429,8 @@ function submitMock(){
     +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
     +PTE_BANDS.map(b=>'<tr'+(equiv>=b.lo&&equiv<=b.hi?' style="background:#EAF4F5;font-weight:700"':'')+'><td style="padding:4px 6px;border-bottom:1px solid var(--line)">'+b.lo+(b.hi!==b.lo?('–'+b.hi):'')+'</td><td style="padding:4px 6px;border-bottom:1px solid var(--line)">'+b.cefr+'</td><td style="padding:4px 6px;border-bottom:1px solid var(--line);color:var(--muted)">'+b.desc+'</td></tr>').join('')
     +'</table>'
-    +'<div class="hint" style="margin-top:6px">PTE 官方不公布「练习正确率→分数」换算表；上方为透明练习分（0–100），「PTE 当量 ≈ '+equiv+'（'+band.cefr+'）」为本工具启发式估算（非官方），仅供进度参考。权威分数以 Pearson 官方付费模考为准。</div></div>'
-    +'<div class="overall-box"><div class="ob-num" style="color:'+(overall>=TARGET?'var(--green)':overall>=50?'var(--amber)':'var(--red)')+'">'+overall+'</div><div class="ob-lab">综合估分 / 100 · 目标 '+TARGET+'</div><div class="ob-msg2">PTE 当量估算 ≈ '+equiv+'（'+band.cefr+'）'+(equiv>=TARGET?' · 已达目标档':' · 距目标档还差 '+(TARGET-equiv)+' 分')+'</div>'+(overall>=TARGET?'<div class="ob-msg" style="color:var(--green)">🎯 已达目标线！</div>':'<div class="ob-msg" style="color:var(--amber)">距目标还差 '+(TARGET-overall)+' 分，优先补最弱模块</div>')+'</div>'
+    +'<div class="hint" style="margin-top:6px">PTE 官方不公布「练习正确率→分数」换算表；上方为透明练习分（0–100），「训练表现参考区间 ≈ '+equiv+'（'+band.cefr+'）」为本工具启发式估算（非官方、非预测分），仅供进度参考。权威分数以 Pearson 官方付费模考为准。</div></div>'
+    +'<div class="overall-box"><div class="ob-num" style="color:'+(overall>=TARGET?'var(--green)':overall>=50?'var(--amber)':'var(--red)')+'">'+overall+'</div><div class="ob-lab">综合估分 / 100 · 目标 '+TARGET+'</div><div class="ob-msg2">训练表现参考区间（非官方预测）≈ '+equiv+'（'+band.cefr+'）'+(equiv>=TARGET?' · 已达目标档':' · 距目标档还差 '+(TARGET-equiv)+' 分')+'</div>'+(overall>=TARGET?'<div class="ob-msg" style="color:var(--green)">🎯 已达目标线！</div>':'<div class="ob-msg" style="color:var(--amber)">距目标还差 '+(TARGET-overall)+' 分，优先补最弱模块</div>')+'</div>'
     +(weakHtml?weakHtml:'')
     +'<div class="hint" style="margin-top:12px"><b>计分公式（公开透明）：</b>自动题型（WFD/SST/FIB/SWT）按正确率×20 折算 0–100；口语 / 写作按你每项自评 1–5 ×20 折算。四模块等权平均＝综合估分。本次成绩已自动记入「计划 → P3」能力曲线。</div>'
     +'<div class="row"><button class="btn" id="mgain" style="flex:1">去记成绩（计划 P3）</button></div>'
@@ -1669,6 +1706,14 @@ function renderMine(){
     +'<div class="row" style="margin-top:8px"><button class="btn ghost" id="bImp">从文件恢复</button><button class="btn ghost" id="bCodeImp">从同步码恢复</button></div>'
     +'<input type="file" id="bFile" accept="application/json" style="display:none">'
     +'<div id="bMsg" style="font-size:12px;color:var(--teal);margin-top:6px;min-height:14px"></div></div>';
+  // 我的第一周计划（摸底生成）
+  if(onplan&&onplan.days&&onplan.days.length){
+    h+='<div class="card"><div class="ph">📅 我的第一周计划 <span style="font-size:11px;color:var(--muted);font-weight:400">（摸底生成 · 最薄弱：'+onplan.weak+'）</span></div>';
+    h+=onplan.days.map((dd,i)=>'<div style="margin:4px 0"><div style="font-size:13px;font-weight:700;color:var(--teal)">第 '+(i+1)+' 天 · '+dd.date+(dd.tasks.every(t=>t.done)?' ✅':'')+'</div>'+dd.tasks.map(t=>'<div style="font-size:12.5px;color:var(--slate);margin:1px 0 0 8px">· '+t.t+(t.done?' ✓':'')+'</div>').join('')+'</div>').join('');
+    h+='<button class="btn" id="reDiag" style="margin-top:8px;width:100%">🧭 重新摸底（更新周计划）</button></div>';
+  } else {
+    h+='<div class="card"><div class="ph">🧭 首次摸底</div><div class="hint" style="margin-top:0">还没做过摸底。点下方按钮，5 分钟生成你的第一周计划。</div><button class="btn" id="reDiag" style="margin-top:8px;width:100%">用 5 分钟做一次摸底 →</button></div>';
+  }
   h+='<div class="card"><div class="ph">⚠️ 危险区</div><button class="reset" id="rst">清空所有进度，从头开始</button></div>';
   body.innerHTML=h;
   body.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{const f=fav[+b.dataset.go];const nv=FAVNAV[f.t];goNav(nv[0],nv[1]);});
@@ -1678,7 +1723,8 @@ function renderMine(){
   const bImp=$('#bImp'); if(bImp)bImp.onclick=()=>{$('#bFile').click();};
   const bFile=$('#bFile'); if(bFile)bFile.onchange=()=>{const f=bFile.files&&bFile.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(applyBackup(o)){$('#bMsg').textContent='✅ 已从文件恢复，进度已更新。';updateTop();renderMine();}else $('#bMsg').textContent='❌ 文件格式不对。';}catch(e){$('#bMsg').textContent='❌ 解析失败。';}};r.readAsText(f);};
   const bCodeImp=$('#bCodeImp'); if(bCodeImp)bCodeImp.onclick=()=>{const code=prompt('粘贴同步码：');if(!code)return;try{const json=decodeURIComponent(escape(atob(code.trim())));const o=JSON.parse(json);if(applyBackup(o)){$('#bMsg').textContent='✅ 已从同步码恢复，进度已更新。';updateTop();renderMine();}else $('#bMsg').textContent='❌ 同步码无效。';}catch(e){$('#bMsg').textContent='❌ 同步码无效。';}};
-  const rst=$('#rst'); if(rst)rst.onclick=()=>{if(confirm('清空所有进度？')){knownV={};diffData={};knownL.clear();wfdAcc={};sstAcc={};fibAcc={};accLog=[];spk={};cal={};save('pte_kv',{});save('pte_diff',{});save('pte_kl',[]);save('pte_wfd',{});save('pte_sst',sstAcc);save('pte_fib',fibAcc);save('pte_acclog',accLog);save('pte_spk',spk);save('pte_cal',cal);prog={date:'',v:0,l:0};save('pte_prog',prog);todays={date:'',done:[]};save('pte_today',todays);streak={last:'',count:0};save('pte_streak',streak);updateTop();switchTab('today');}};
+  const reDiag=$('#reDiag'); if(reDiag)reDiag.onclick=()=>showOnboard();
+  const rst=$('#rst'); if(rst)rst.onclick=()=>{if(confirm('清空所有进度？')){knownV={};diffData={};knownL.clear();wfdAcc={};sstAcc={};fibAcc={};accLog=[];spk={};cal={};causes={};onboarded=0;onplan=null;save('pte_kv',{});save('pte_diff',{});save('pte_kl',[]);save('pte_wfd',{});save('pte_sst',sstAcc);save('pte_fib',fibAcc);save('pte_acclog',accLog);save('pte_spk',spk);save('pte_cal',cal);save('pte_causes',causes);save('pte_onboarded',onboarded);save('pte_onplan',onplan);prog={date:'',v:0,l:0};save('pte_prog',prog);todays={date:'',done:[]};save('pte_today',todays);streak={last:'',count:0};save('pte_streak',streak);updateTop();switchTab('today');if(!onboarded)showOnboard();}};
 }
 
 function switchTab(t){curTab=t;if(t!=='mock')clearMockTimer();document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));if(t==='today'){renderToday();}else if(t==='practice'){renderPractice();}else if(t==='mock'){renderMock();}else if(t==='plan'){renderPlan();}else if(t==='mine'){renderMine();}}
@@ -1686,6 +1732,195 @@ body.addEventListener('click',e=>{const b=e.target.closest('[data-fav]');if(b){c
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.t));
 updateTop();
 switchTab('today');
+if(!onboarded)showOnboard();
+
+// ============ 处方卡：错因分类 + 可执行的提分建议 ============
+const FUNC_WORDS=new Set("a an the and or but of to in on for with is are was were be been being this that these those it its as by from at we you they he she his her their our your my i not no can will would should could may might must do does did has have had also more most very".split(" "));
+// WFD 逐词对齐：漏词 / 拼写 / 冠词介词等功能词错
+function classifyWFD(typed, orig){
+  const o=(orig||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+  const g=(typed||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').split(/\s+/).filter(Boolean);
+  let okc=0, miss=0, spell=0, func=0;
+  const mx=Math.max(o.length,g.length);
+  for(let k=0;k<mx;k++){const ow=o[k]||'', gw=g[k]||'';
+    if(ow===gw){ if(ow)okc++; }
+    else if(!gw){ if(ow)miss++; }
+    else if(FUNC_WORDS.has(ow)&&FUNC_WORDS.has(gw)){ func++; }
+    else { spell++; }
+  }
+  const pct=o.filter(Boolean).length?(okc/o.filter(Boolean).length*100|0):0;
+  return {pct:pct, miss:miss, spell:spell, func:func};
+}
+function recCause(type, info){
+  if(!causes[type])causes[type]={n:0};
+  causes[type].n++;
+  if(type==='WFD'){ causes[type].miss=(causes[type].miss||0)+info.miss; causes[type].spell=(causes[type].spell||0)+info.spell; causes[type].func=(causes[type].func||0)+info.func; }
+  save('pte_causes',causes);
+}
+// 生成处方卡 HTML（今日页顶部 + 复盘可用）
+function prescriptionCard(){
+  const recent=accLog.slice(-12);
+  if(!recent.length) return '';
+  const mods={};
+  recent.forEach(a=>{ (mods[a.type]=mods[a.type]||[]).push(a.pct); });
+  const avg=tp=> mods[tp]&&mods[tp].length? Math.round(mods[tp].reduce((s,x)=>s+x,0)/mods[tp].length):null;
+  const order=['WFD','SST','FIB','SWT','MCSA','RA','RS','DI'];
+  let worst=null, worstPct=101;
+  order.forEach(tp=>{const a=avg(tp); if(a!=null&&a<worstPct){worstPct=a;worst=tp;}});
+  if(!worst) return '';
+  let causeTxt='', evidence='近 '+mods[worst].length+' 次 '+worst+' 平均 '+worstPct+'%';
+  const c=causes[worst];
+  if(worst==='WFD'&&c&&c.n){
+    const tot=c.miss+c.spell+c.func;
+    let dom='', domPct=0;
+    [['漏功能词(冠词/介词)',c.func],['拼写错误',c.spell],['漏词',c.miss]].forEach(([nm,v])=>{if(v>domPct){domPct=v;dom=nm;}});
+    if(tot) causeTxt='主要错因：<b>'+dom+'</b>（占 '+(domPct/tot*100|0)+'%）';
+  }
+  const nextMap={
+    'WFD':'连续完成 8 题短句 WFD 听写，正确率≥85% 后切换 RS 复述',
+    'SST':'精听 3 篇 SST，逐句抓关键内容词（名词/动词），覆盖率≥60%',
+    'FIB':'做 8 题 FIB 填空，重点看上下文搭配与固定搭配',
+    'SWT':'写 3 篇 SWT，一句概括核心（关键内容词覆盖率≥60%）',
+    'MCSA':'做 10 题阅读单选，先读题再定位原文',
+    'RA':'朗读 5 段 RA，注意意群停顿与重音',
+    'RS':'复述 20 句 RS，先抓主干 SVO 再补修饰',
+    'DI':'描述 5 题 DI，套模板：最高点→最低点→对比→总结'
+  };
+  const next=nextMap[worst]||('针对 '+worst+' 加练');
+  return '<div class="rx-card">'
+    +'<div class="rx-h">💊 今日训练处方</div>'
+    +'<div class="rx-row"><span class="rx-k">最大失分</span><span class="rx-v"><b>'+worst+'</b> · '+worstPct+'%</span></div>'
+    +(causeTxt?'<div class="rx-row"><span class="rx-k">证据</span><span class="rx-v">'+evidence+'；'+causeTxt+'</span></div>'
+              :'<div class="rx-row"><span class="rx-k">证据</span><span class="rx-v">'+evidence+'</span></div>')
+    +'<div class="rx-row"><span class="rx-k">下一步</span><span class="rx-v">'+next+'</span></div>'
+    +'<div class="hint" style="margin-top:6px">基于你最近练习的错因自动生成，练完回来会更新。非官方预测，仅供训练参考。</div>'
+    +'</div>';
+}
+
+// ============ 首次摸底 + 自动第一周计划 ============
+let diag=null;
+function showOnboard(){
+  const ob=document.getElementById('onboard');
+  ob.className='show';
+  ob.innerHTML='<div class="ob-card">'
+    +'<div class="ob-logo">🐱</div>'
+    +'<div class="ob-t">阿奇PTE 私人冲刺教练</div>'
+    +'<div class="ob-s">先花 <b>5 分钟</b> 做一次摸底，我会根据你的薄弱项，自动生成你的 <b>第一周计划</b>。<br>之后所有功能为你解锁。</div>'
+    +'<button class="ob-btn" id="obStart">用 5 分钟做一次摸底，生成第一周计划</button>'
+    +'<div class="ob-skip" id="obSkip">先随便逛逛 →</div></div>';
+  const s=document.getElementById('obStart'); if(s)s.onclick=()=>startDiag();
+  const sk=document.getElementById('obSkip'); if(sk)sk.onclick=()=>{onboarded=1;save('pte_onboarded',1);ob.className='';};
+}
+function startDiag(){
+  diag={i:0, ans:{}, rating:0, items:[
+    {type:'WFD', title:'WFD 听写', tip:'听一句，默写下来（尽量写对单词）'},
+    {type:'FIBR', title:'FIB 阅读填空', tip:'读短文，为每个空选最合适的词'},
+    {type:'MCSA', title:'阅读单选', tip:'读短文，选出正确答案'},
+    {type:'SST', title:'SST 精听', tip:'听讲座，用一句话写下核心内容'},
+    {type:'RA', title:'RA 朗读', tip:'读这段，凭感觉给自己 1–5 分（5=很顺）'},
+    {type:'RS', title:'RS 复述', tip:'听一句，复述大意，凭感觉给自己 1–5 分'},
+    {type:'DI', title:'DI 描述', tip:'看这张图主题，凭感觉给自己 1–5 分'}
+  ]};
+  renderDiag();
+}
+function renderDiag(){
+  const ob=document.getElementById('onboard');
+  const it=diag.items[diag.i], total=diag.items.length;
+  let q='';
+  if(it.type==='WFD'){
+    const d=DATA.wfdr[Math.floor(Math.random()*DATA.wfdr.length)]; diag.cur=d[0];
+    q='<div class="ob-q"><div class="ph">'+it.title+' · '+it.tip+'</div>'
+      +'<button class="ob-btn" id="dSpk" style="width:auto;padding:10px 18px;margin-bottom:8px">🔊 播放</button>'
+      +'<textarea id="dAns" rows="2" placeholder="听完后默写英文句子"></textarea></div>';
+  } else if(it.type==='FIBR'){
+    const q0=DATA.fibrw[Math.floor(Math.random()*DATA.fibrw.length)]; diag.cur=q0;
+    let html=q0.p; q0.b.forEach((bl,k)=>{ const sel='<select id="fib'+k+'">'+bl[0].map((o,j)=>'<option value="'+j+'">'+o+'</option>').join('')+'</select>'; html=html.replace('_____', sel); });
+    q='<div class="ob-q"><div class="ph">'+it.title+' · '+it.tip+'</div><div style="font-size:14px;line-height:1.8">'+html+'</div></div>';
+  } else if(it.type==='MCSA'){
+    const m=DATA.mcsa[Math.floor(Math.random()*DATA.mcsa.length)]; diag.cur=m;
+    q='<div class="ob-q"><div class="ph">'+it.title+' · '+it.tip+'</div>'
+      +'<div style="font-size:13px;line-height:1.7;color:var(--slate);margin-bottom:8px">'+m[1][0]+'</div>'
+      +'<div style="font-size:14px;font-weight:600;margin-bottom:6px">'+m[2]+'</div>'
+      +m[3].map((o,j)=>'<div style="margin:5px 0"><label><input type="radio" name="mc" value="'+j+'"> '+o+'</label></div>').join('');
+  } else if(it.type==='SST'){
+    const p=DATA.pass[Math.floor(Math.random()*DATA.pass.length)]; diag.cur=p;
+    q='<div class="ob-q"><div class="ph">'+it.title+' · '+it.tip+'</div>'
+      +'<button class="ob-btn" id="dSpk" style="width:auto;padding:10px 18px;margin-bottom:8px">🔊 播放讲座</button>'
+      +'<textarea id="dAns" rows="2" placeholder="用一句话写下核心内容"></textarea></div>';
+  } else if(it.type==='RA'){
+    const s=DATA.ra_sen[Math.floor(Math.random()*DATA.ra_sen.length)]; diag.cur=s;
+    q='<div class="ob-q"><div class="ph">'+it.title+' · '+it.tip+'</div><div style="font-size:15px;line-height:1.7">'+highlightKeys(s)+'</div>'+rateHtml()+'</div>';
+  } else if(it.type==='RS'){
+    const s=DATA.rs_sen[Math.floor(Math.random()*DATA.rs_sen.length)]; diag.cur=s;
+    q='<div class="ob-q"><div class="ph">'+it.title+' · '+it.tip+'</div>'
+      +'<button class="ob-btn" id="dSpk" style="width:auto;padding:10px 18px;margin-bottom:8px">🔊 播放</button>'+rateHtml()+'</div>';
+  } else if(it.type==='DI'){
+    const d=DATA.di_topics[Math.floor(Math.random()*DATA.di_topics.length)]; diag.cur=d;
+    q='<div class="ob-q"><div class="ph">'+it.title+' · '+it.tip+'</div><div style="font-size:15px;font-weight:600">'+d[0]+'</div><div style="font-size:13px;color:var(--muted);margin-top:4px">'+d[1]+'</div>'+rateHtml()+'</div>';
+  }
+  const last=diag.i===total-1;
+  ob.innerHTML='<div class="ob-card"><div class="ob-prog">摸底进度 '+(diag.i+1)+' / '+total+'</div>'+q
+    +'<button class="ob-btn" id="dNext" style="margin-top:6px">'+(last?'生成我的第一周计划 🎯':'下一题 →')+'</button></div>';
+  const spk=document.getElementById('dSpk'); if(spk)spk.onclick=()=>speak(diag.cur);
+  document.querySelectorAll('.ob-rate button').forEach(b=>b.onclick=()=>{diag.rating=+b.dataset.v;document.querySelectorAll('.ob-rate button').forEach(x=>x.classList.toggle('on',x===b));});
+  document.getElementById('dNext').onclick=()=>{ recordDiag(it); if(last)finishDiag(); else {diag.i++;diag.rating=0;renderDiag();} };
+}
+function rateHtml(){ return '<div class="ob-rate">'+[1,2,3,4,5].map(v=>'<button data-v="'+v+'">'+v+'</button>').join('')+'</div><div class="hint" style="margin-top:0">1=很吃力，5=很顺</div>'; }
+function recordDiag(it){
+  if(it.type==='WFD'){ const v=document.getElementById('dAns').value; diag.ans.WFD=classifyWFD(v, diag.cur); }
+  else if(it.type==='FIBR'){ const q0=diag.cur; let ok=0; q0.b.forEach((bl,k)=>{const sel=document.getElementById('fib'+k); if(sel&&+sel.value===bl[1])ok++;}); diag.ans.FIBR=Math.round(ok/q0.b.length*100); }
+  else if(it.type==='MCSA'){ const m=diag.cur; const sel=document.querySelector('input[name=mc]:checked'); diag.ans.MCSA=(sel&&+sel.value===m[4])?100:0; }
+  else if(it.type==='SST'){ const p=diag.cur; const keys=sstKeys(p[1]); const txt=document.getElementById('dAns').value.toLowerCase(); const hit=keys.filter(k=>new RegExp('\\b'+k.replace(/[^a-z0-9]/g,'')+'\\b','i').test(txt)); diag.ans.SST=keys.length?Math.round(hit.length/keys.length*100):0; }
+  else if(it.type==='RA'||it.type==='RS'||it.type==='DI'){ diag.ans[it.type]=diag.rating||3; }
+}
+function genWeek1(weak){
+  const core=['WFD','RS','RA','DI','FIB'];
+  const tip={'WFD':'WFD 占听力分最高，每天先练','RS':'RS 是口语分骨架，每天复述','RA':'RA 决定发音分，每天朗读','DI':'DI 模板化提分快，每天描述','FIB':'FIB 阅读填空拉分，每天练'};
+  const days=[];
+  for(let d=1; d<=7; d++){
+    const rot=core[(d-1)%core.length];
+    const tasks=[ tip[weak]+'（你的薄弱项·重点）' ];
+    if(rot!==weak) tasks.push(tip[rot]+'（核心轮换）');
+    tasks.push('词汇 15 个（读写→词汇）');
+    tasks.push(d%2===0?'SST 精听 1 篇（听力→SST）':'FIB 阅读填空 5 题（读写→FIB填空）');
+    tasks.push('今日总时长控制在 25–30 分钟');
+    days.push({date:addDays(todayStr(),d-1), tasks:tasks.map(t=>({t:t,done:false}))});
+  }
+  return {gen:Date.now(), weak:weak, days:days};
+}
+function finishDiag(){
+  const a=diag.ans, scores=[];
+  if(a.WFD)scores.push(['WFD',a.WFD.pct]);
+  if(a.FIBR)scores.push(['FIB',a.FIBR.pct]);
+  if(a.MCSA)scores.push(['MCSA',a.MCSA.pct]);
+  if(a.SST)scores.push(['SST',a.SST.pct]);
+  if(a.RA)scores.push(['RA',a.RA*20]);
+  if(a.RS)scores.push(['RS',a.RS*20]);
+  if(a.DI)scores.push(['DI',a.DI*20]);
+  scores.sort((x,y)=>x[1]-y[1]);
+  const weak=scores.length?scores[0][0]:'WFD';
+  onplan=genWeek1(weak); save('pte_onplan',onplan);
+  onboarded=1; save('pte_onboarded',1);
+  const ob=document.getElementById('onboard');
+  ob.innerHTML='<div class="ob-card"><div class="ob-logo">🎯</div><div class="ob-t">你的第一周计划已生成</div>'
+    +'<div class="ob-s">摸底显示最薄弱的环节是 <b>'+weak+'</b>。已为你排好 7 天训练路径，每天约 25–30 分钟。</div>'
+    +'<div class="ob-plan">'+onplan.days.map((dd,i)=>'<div class="day"><div class="dn">第 '+(i+1)+' 天 · '+dd.date+'</div>'+dd.tasks.map(t=>'<div class="dt">· '+t.t+'</div>').join('')+'</div>').join('')+'</div>'
+    +'<button class="ob-btn" id="obGo">开始执行 →</button></div>';
+  const g=document.getElementById('obGo'); if(g)g.onclick=()=>{ob.className=''; switchTab('today');};
+}
+
+// 今日页：展示摸底生成的第一周计划（今日重点）
+function onplanCard(){
+  if(!onplan||!onplan.days||!onplan.days.length) return '';
+  const t=todayStr();
+  let idx=onplan.days.findIndex(d=>d.date===t); if(idx<0)idx=0;
+  const day=onplan.days[idx];
+  let h='<div class="card"><span class="onboard-badge">📅 摸底生成 · 第一周计划</span>'
+    +'<div class="ph">今日重点（第 '+(idx+1)+' 天）</div>';
+  h+=day.tasks.map((tk,i)=>'<div style="display:flex;align-items:flex-start;gap:6px;padding:5px 0;font-size:13.5px;color:var(--slate)"><input type="checkbox" data-odi="'+i+'" '+(tk.done?'checked':'')+' style="margin-top:3px">'+tk.t+'</div>').join('');
+  h+='<div class="hint" style="margin-top:6px">完整 7 天计划见「我的 → 我的第一周计划」。最薄弱项：'+onplan.weak+'。</div></div>';
+  return h;
+}
 </script>
 </body>
 </html>
